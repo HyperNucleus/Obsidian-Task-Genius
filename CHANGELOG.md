@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 
 
+## [9.9.5](https://github.com/Quorafind/Obsidian-Task-Genius/compare/9.9.4...9.9.5) (2025-11-03)
+
+### Features
+
+* Add key mapping for 'repeat' to 'recurrence' ([0da3bc1](https://github.com/Quorafind/Obsidian-Task-Genius/commit/0da3bc1))
+
+### Refactors
+
+* **editor:** improve date picker stability and architecture ([befbd6d](https://github.com/Quorafind/Obsidian-Task-Genius/commit/befbd6d))
+
 ## [9.9.4](https://github.com/Quorafind/Obsidian-Task-Genius/compare/9.9.3...9.9.4) (2025-10-30)
 
 ### Features
