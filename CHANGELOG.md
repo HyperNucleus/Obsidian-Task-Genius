@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 
 
+## [9.9.6](https://github.com/Quorafind/Obsidian-Task-Genius/compare/9.9.5...9.9.6) (2025-11-06)
+
+### Features
+
+* support indicator for better status handling ([d36026c](https://github.com/Quorafind/Obsidian-Task-Genius/commit/d36026c))
+
+### Bug Fixes
+
+* calculate recurrence date shoudld work with due date rather than only with current date ([c5677e6](https://github.com/Quorafind/Obsidian-Task-Genius/commit/c5677e6))
+
+### Performance
+
+* improve onboarding performance when open view with Obsidian onloading ([baa280e](https://github.com/Quorafind/Obsidian-Task-Genius/commit/baa280e))
+
+### Styles
+
+* update bumped styles ([2d959e9](https://github.com/Quorafind/Obsidian-Task-Genius/commit/2d959e9))
+* update task indicator style ([82df80c](https://github.com/Quorafind/Obsidian-Task-Genius/commit/82df80c))
+
 ## [9.9.5](https://github.com/Quorafind/Obsidian-Task-Genius/compare/9.9.4...9.9.5) (2025-11-03)
 
 ### Features
