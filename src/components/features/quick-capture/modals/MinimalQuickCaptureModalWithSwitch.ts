@@ -658,9 +658,11 @@ export class MinimalQuickCaptureModal extends BaseQuickCaptureModal {
 			metadata.push(priorityIcons[this.taskMetadata.priority - 1]);
 		}
 
-		// Add tags
+		// Add tags (ensure they start with # but don't double-add)
 		if (this.taskMetadata.tags && this.taskMetadata.tags.length > 0) {
-			metadata.push(...this.taskMetadata.tags.map((tag) => `#${tag}`));
+			metadata.push(...this.taskMetadata.tags.map((tag) =>
+				tag.startsWith("#") ? tag : `#${tag}`
+			));
 		}
 
 		// Add metadata to content
