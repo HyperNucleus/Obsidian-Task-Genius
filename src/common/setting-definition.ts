@@ -446,6 +446,7 @@ export interface FluentViewSettings {
 		defaultWorkspace?: string;
 		maxOtherViewsBeforeOverflow?: number; // how many other views to show before overflow menu
 	};
+	interfaceStyle?: "modern" | "classic";
 }
 
 export interface ExperimentalSettings {

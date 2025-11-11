@@ -9,15 +9,15 @@ import { FluentViewSettings } from "@/common/setting-definition";
 
 export function renderInterfaceSettingsTab(
 	settingTab: TaskProgressBarSettingTab,
-	containerEl: HTMLElement,
+	containerEl: HTMLElement
 ) {
 	// Header
 	new Setting(containerEl)
 		.setName(t("User Interface"))
 		.setDesc(
 			t(
-				"Choose your preferred interface style and configure how Task Genius displays in your workspace.",
-			),
+				"Choose your preferred interface style and configure how Task Genius displays in your workspace."
+			)
 		)
 		.setHeading();
 
@@ -26,8 +26,8 @@ export function renderInterfaceSettingsTab(
 		.setName(t("Interface Mode"))
 		.setDesc(
 			t(
-				"Select between the modern Fluent interface or the classic Legacy interface.",
-			),
+				"Select between the modern Fluent interface or the classic Legacy interface."
+			)
 		)
 		.setHeading();
 
@@ -48,7 +48,7 @@ export function renderInterfaceSettingsTab(
 			title: t("Fluent"),
 			subtitle: t("Modern & Sleek"),
 			description: t(
-				"New visual design with elegant animations and modern interactions",
+				"New visual design with elegant animations and modern interactions"
 			),
 			preview: createFluentPreview(),
 		},
@@ -57,7 +57,7 @@ export function renderInterfaceSettingsTab(
 			title: t("Legacy"),
 			subtitle: t("Classic & Familiar"),
 			description: t(
-				"Keep the familiar interface and interaction style you know",
+				"Keep the familiar interface and interaction style you know"
 			),
 			preview: createLegacyPreview(),
 		},
@@ -85,7 +85,7 @@ export function renderInterfaceSettingsTab(
 
 			// Re-render the settings to show/hide Fluent-specific options
 			renderFluentSpecificSettings();
-		},
+		}
 	);
 
 	// Set initial selection
@@ -112,13 +112,44 @@ export function renderInterfaceSettingsTab(
 			.setDesc(t("Configure options specific to the Fluent interface."))
 			.setHeading();
 
+		new Setting(fluentSettingsContainer)
+			.setName(t("Interface Style"))
+			.setDesc(t("Select the interface style to use."))
+			.addDropdown((dropdown) => {
+				dropdown.addOption("modern", t("Modern"));
+				dropdown.addOption("classic", t("Classic"));
+				dropdown
+					.setValue(
+						settingTab.plugin.settings.fluentView?.interfaceStyle ||
+							"modern"
+					)
+					.onChange(async (value) => {
+						if (!settingTab.plugin.settings.fluentView) {
+							settingTab.plugin.settings.fluentView = {
+								enableFluent: false,
+								interfaceStyle: "modern",
+								useWorkspaceSideLeaves: false,
+								fluentConfig: {
+									enableWorkspaces: true,
+									defaultWorkspace: "default",
+									maxOtherViewsBeforeOverflow: 5,
+								},
+							};
+						}
+						settingTab.plugin.settings.fluentView.interfaceStyle =
+							value as "modern" | "classic";
+						await settingTab.plugin.saveSettings();
+						new Notice(t("Saved. Reopen the view to apply."));
+					});
+			});
+
 		// Use workspace side leaves for Sidebar & Details
 		new Setting(fluentSettingsContainer)
 			.setName(t("Use workspace side leaves"))
 			.setDesc(
 				t(
-					"Use left/right workspace side leaves for Sidebar and Details. When enabled, the main fluent view won't render in-view sidebar or details.",
-				),
+					"Use left/right workspace side leaves for Sidebar and Details. When enabled, the main fluent view won't render in-view sidebar or details."
+				)
 			)
 			.addToggle((toggle) => {
 				const current =
@@ -151,8 +182,8 @@ export function renderInterfaceSettingsTab(
 			.setName(t("Max other views before overflow"))
 			.setDesc(
 				t(
-					"Number of 'Other Views' to show before grouping the rest into an overflow menu (ellipsis)",
-				),
+					"Number of 'Other Views' to show before grouping the rest into an overflow menu (ellipsis)"
+				)
 			)
 			.addText((text) => {
 				const current =

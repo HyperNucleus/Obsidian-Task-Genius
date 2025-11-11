@@ -5,6 +5,7 @@ import "@/styles/fluent/fluent-main.css";
 import "@/styles/fluent/fluent-secondary.css";
 import "@/styles/fluent/fluent-content-header.css";
 import "@/styles/fluent/fluent-project-popover.css";
+import "@/styles/fluent/fluent-modern.css";
 import {
 	TopNavigation,
 	ViewMode,
@@ -138,10 +139,14 @@ export class FluentTaskView extends ItemView {
 		return !!this.plugin.settings.fluentView?.useWorkspaceSideLeaves;
 	}
 
+	private getInterfaceStyle(): "modern" | "classic" {
+		return this.plugin.settings.fluentView?.interfaceStyle ?? "modern";
+	}
+
 	updateWorkspaceLeafWidth = debounce(() => {
 		this.app.workspace.trigger(
 			"task-genius:leaf-width-updated",
-			this.leaf.width,
+			this.leaf.width
 		);
 	}, 200);
 
@@ -191,7 +196,7 @@ export class FluentTaskView extends ItemView {
 			} catch (e) {
 				console.warn(
 					"[Task Genius] Failed to sync selectedProject from filter state",
-					e,
+					e
 				);
 			}
 
@@ -203,7 +208,7 @@ export class FluentTaskView extends ItemView {
 			this.filteredTasks = this.dataManager.applyFilters(this.tasks);
 			this.updateView();
 		},
-		150,
+		150
 	);
 
 	onResize(): void {
@@ -214,7 +219,7 @@ export class FluentTaskView extends ItemView {
 		const availableModes =
 			this.componentManager?.getAvailableModesForView(
 				viewId,
-				this.viewState.selectedProject,
+				this.viewState.selectedProject
 			) ?? [];
 		const storedMode = this.viewState.viewModeByViewId?.[viewId];
 
@@ -244,7 +249,7 @@ export class FluentTaskView extends ItemView {
 			const prefersTree = getInitialViewMode(
 				this.app,
 				this.plugin,
-				viewId,
+				viewId
 			);
 			if (prefersTree && availableModes.includes("tree")) {
 				return "tree";
@@ -264,7 +269,7 @@ export class FluentTaskView extends ItemView {
 
 		const availableModes = this.componentManager?.getAvailableModesForView(
 			viewId,
-			this.viewState.selectedProject,
+			this.viewState.selectedProject
 		);
 		if (
 			availableModes &&
@@ -290,15 +295,21 @@ export class FluentTaskView extends ItemView {
 			// ====================
 			if (this.DEBUG_MODE) {
 				console.log(
-					"[Task Genius] Initializing UI, managers, structure, and events...",
+					"[Task Genius] Initializing UI, managers, structure, and events..."
 				);
 			}
 
 			this.contentEl.empty();
 			this.contentEl.toggleClass(
 				["task-genius-fluent-view", "task-genius-view"],
-				true,
+				true
 			);
+
+			if (this.getInterfaceStyle() === "modern") {
+				(this.leaf as any).containerEl.addClass("fluent-modern");
+			} else {
+				(this.leaf as any).containerEl.addClass("fluent-classic");
+			}
 
 			// Create root container (use exact same class as original)
 			this.rootContainerEl = this.contentEl.createDiv({
@@ -321,7 +332,7 @@ export class FluentTaskView extends ItemView {
 
 			if (this.DEBUG_MODE) {
 				console.log(
-					"[Task Genius] ✅ UI, managers, structure, and events initialized",
+					"[Task Genius] ✅ UI, managers, structure, and events initialized"
 				);
 			}
 
@@ -339,7 +350,7 @@ export class FluentTaskView extends ItemView {
 				this.viewState.currentWorkspace = savedWorkspaceId;
 				if (this.DEBUG_MODE) {
 					console.log(
-						`[Task Genius] Restored workspace ID: ${savedWorkspaceId}`,
+						`[Task Genius] Restored workspace ID: ${savedWorkspaceId}`
 					);
 				}
 			}
@@ -356,7 +367,7 @@ export class FluentTaskView extends ItemView {
 					this.liveFilterState = state;
 					this.app.saveLocalStorage(
 						"task-genius-view-filter",
-						state || null,
+						state || null
 					);
 				},
 				setCurrentFilterState: (state) => {
@@ -374,14 +385,14 @@ export class FluentTaskView extends ItemView {
 						const availableModes =
 							this.componentManager?.getAvailableModesForView(
 								this.currentViewId,
-								selectedProject,
+								selectedProject
 							) ?? [];
 						if (
 							availableModes.length > 0 &&
 							!availableModes.includes(viewMode)
 						) {
 							return this.ensureViewModeForView(
-								this.currentViewId,
+								this.currentViewId
 							);
 						}
 						return viewMode;
@@ -389,7 +400,7 @@ export class FluentTaskView extends ItemView {
 					this.viewState.viewMode = normalizedMode;
 					this.recordViewModeForView(
 						this.currentViewId,
-						normalizedMode,
+						normalizedMode
 					);
 					this.topNavigation?.setViewMode(normalizedMode);
 					if (clearSearch) {
@@ -409,7 +420,7 @@ export class FluentTaskView extends ItemView {
 			await this.dataManager.loadTasks(false); // Will trigger onTasksLoaded callback
 			await this.dataManager.registerDataflowListeners();
 			console.log(
-				`[Task Genius] ✅ Loaded ${this.tasks.length} tasks, ${this.filteredTasks.length} after filters`,
+				`[Task Genius] ✅ Loaded ${this.tasks.length} tasks, ${this.filteredTasks.length} after filters`
 			);
 
 			// ====================
@@ -434,7 +445,7 @@ export class FluentTaskView extends ItemView {
 			// ====================
 			if (this.DEBUG_MODE) {
 				console.log(
-					`[Task Genius] Finalizing (isInitializing was ${this.isInitializing})`,
+					`[Task Genius] Finalizing (isInitializing was ${this.isInitializing})`
 				);
 			}
 
@@ -464,7 +475,7 @@ export class FluentTaskView extends ItemView {
 				searchQuery: this.viewState.searchQuery || "",
 				filterInputValue: this.viewState.filterInputValue || "",
 			}),
-			() => this.isInitializing,
+			() => this.isInitializing
 		);
 		this.dataManager.setCallbacks({
 			onTasksLoaded: (tasks, error) => {
@@ -480,7 +491,7 @@ export class FluentTaskView extends ItemView {
 					this.isLoading = false;
 					// Apply filters immediately after loading
 					this.filteredTasks = this.dataManager.applyFilters(
-						this.tasks,
+						this.tasks
 					);
 					this.updateView();
 				}
@@ -493,7 +504,7 @@ export class FluentTaskView extends ItemView {
 			},
 			onUpdateNeeded: (source) => {
 				console.log(
-					`[Task Genius] Update needed from source: ${source}`,
+					`[Task Genius] Update needed from source: ${source}`
 				);
 				// Re-apply filters and update view
 				this.filteredTasks = this.dataManager.applyFilters(this.tasks);
@@ -507,7 +518,7 @@ export class FluentTaskView extends ItemView {
 			this.app,
 			this.plugin,
 			() => this.workspaceId,
-			() => this.useSideLeaves(),
+			() => this.useSideLeaves()
 		);
 		this.actionHandlers.setCallbacks({
 			onTaskSelectionChanged: (task) => {
@@ -523,7 +534,7 @@ export class FluentTaskView extends ItemView {
 					this.tasks[index] = updatedTask;
 					// Re-apply filters
 					this.filteredTasks = this.dataManager.applyFilters(
-						this.tasks,
+						this.tasks
 					);
 					this.updateView();
 				}
@@ -554,7 +565,7 @@ export class FluentTaskView extends ItemView {
 			onNavigateToView: (viewId) => {
 				this.recordViewModeForView(
 					this.currentViewId,
-					this.viewState.viewMode,
+					this.viewState.viewMode
 				);
 				this.currentViewId = viewId;
 
@@ -562,7 +573,7 @@ export class FluentTaskView extends ItemView {
 				// This enables the full project overview mode
 				if (viewId === "projects") {
 					console.log(
-						"[Task Genius] Navigating to projects overview - clearing project selection",
+						"[Task Genius] Navigating to projects overview - clearing project selection"
 					);
 					this.viewState.selectedProject = undefined;
 
@@ -576,31 +587,31 @@ export class FluentTaskView extends ItemView {
 								.map((g: any) => ({
 									...g,
 									filters: (g.filters || []).filter(
-										(f: any) => f.property !== "project",
+										(f: any) => f.property !== "project"
 									),
 								}))
 								.filter(
 									(g: any) =>
-										g.filters && g.filters.length > 0,
+										g.filters && g.filters.length > 0
 								);
 
 							this.liveFilterState = nextState as any;
 							this.currentFilterState = nextState as any;
 							this.app.saveLocalStorage(
 								"task-genius-view-filter",
-								nextState,
+								nextState
 							);
 
 							// Broadcast filter change
 							this.app.workspace.trigger(
 								"task-genius:filter-changed",
-								nextState,
+								nextState
 							);
 						}
 					} catch (e) {
 						console.warn(
 							"[Task Genius] Failed to clear project filter",
-							e,
+							e
 						);
 					}
 				}
@@ -629,17 +640,17 @@ export class FluentTaskView extends ItemView {
 				// Switch to projects view
 				this.recordViewModeForView(
 					this.currentViewId,
-					this.viewState.viewMode,
+					this.viewState.viewMode
 				);
 				this.currentViewId = "projects";
 				this.filteredTasks = this.dataManager.applyFilters(this.tasks);
 				const projectsViewMode = this.ensureViewModeForView(
-					this.currentViewId,
+					this.currentViewId
 				);
 				this.viewState.viewMode = projectsViewMode;
 				this.recordViewModeForView(
 					this.currentViewId,
-					projectsViewMode,
+					projectsViewMode
 				);
 				this.topNavigation?.setViewMode(projectsViewMode);
 
@@ -656,7 +667,7 @@ export class FluentTaskView extends ItemView {
 						.map((g: any) => ({
 							...g,
 							filters: (g.filters || []).filter(
-								(f: any) => f.property !== "project",
+								(f: any) => f.property !== "project"
 							),
 						}))
 						.filter((g: any) => g.filters && g.filters.length > 0); // Remove empty groups
@@ -682,23 +693,23 @@ export class FluentTaskView extends ItemView {
 					this.currentFilterState = nextState as any;
 					this.app.saveLocalStorage(
 						"task-genius-view-filter",
-						nextState,
+						nextState
 					);
 
 					// Broadcast so any open filter UI reacts and header button shows reset
 					// The filter-changed event listener will handle applyFilters and updateView
 					this.app.workspace.trigger(
 						"task-genius:filter-changed",
-						nextState,
+						nextState
 					);
 				} catch (e) {
 					console.warn(
 						"[Task Genius] Failed to project-sync filter UI state",
-						e,
+						e
 					);
 					// If filter sync fails, still update the view
 					this.filteredTasks = this.dataManager.applyFilters(
-						this.tasks,
+						this.tasks
 					);
 					this.updateView();
 				}
@@ -737,7 +748,7 @@ export class FluentTaskView extends ItemView {
 				viewMode: this.viewState.viewMode,
 			}),
 			() => this.currentFilterState,
-			() => this.liveFilterState,
+			() => this.liveFilterState
 		);
 		this.addChild(this.workspaceStateManager);
 
@@ -745,7 +756,7 @@ export class FluentTaskView extends ItemView {
 		this.selectionManager = new TaskSelectionManager(
 			this.app,
 			this.plugin,
-			this,
+			this
 		);
 		this.addChild(this.selectionManager);
 
@@ -813,7 +824,7 @@ export class FluentTaskView extends ItemView {
 			this.rootContainerEl,
 			this.headerEl, // Obsidian's view header
 			this.titleEl, // Obsidian's view title element
-			() => this.filteredTasks.length,
+			() => this.filteredTasks.length
 		);
 		this.layoutManager.setOnSidebarNavigate((viewId) => {
 			this.actionHandlers.handleNavigate(viewId);
@@ -831,7 +842,7 @@ export class FluentTaskView extends ItemView {
 			onTaskUpdate: async (originalTask, updatedTask) => {
 				await this.actionHandlers.handleTaskUpdate(
 					originalTask,
-					updatedTask,
+					updatedTask
 				);
 			},
 		});
@@ -851,7 +862,7 @@ export class FluentTaskView extends ItemView {
 		} else {
 			sidebarEl.hide();
 			console.log(
-				"[Task Genius] Using workspace side leaves: skip in-view sidebar",
+				"[Task Genius] Using workspace side leaves: skip in-view sidebar"
 			);
 		}
 
@@ -869,7 +880,7 @@ export class FluentTaskView extends ItemView {
 				// Sort click callback (future extension point)
 			},
 			() => this.actionHandlers.handleSettingsClick(),
-			[], // Start with empty modes, will be set by updateView
+			[] // Start with empty modes, will be set by updateView
 		);
 		this.addChild(this.topNavigation);
 
@@ -890,7 +901,7 @@ export class FluentTaskView extends ItemView {
 				onTaskUpdate: async (originalTask, updatedTask) => {
 					await this.actionHandlers.handleTaskUpdate(
 						originalTask,
-						updatedTask,
+						updatedTask
 					);
 				},
 				onTaskContextMenu: (event, task) => {
@@ -898,36 +909,36 @@ export class FluentTaskView extends ItemView {
 				},
 				onKanbanTaskStatusUpdate: (taskId, newStatusMark) => {
 					console.log(
-						`[FluentTaskView] Kanban status update callback received: taskId=${taskId}, mark=${newStatusMark}`,
+						`[FluentTaskView] Kanban status update callback received: taskId=${taskId}, mark=${newStatusMark}`
 					);
 					console.log(
-						`[FluentTaskView] Current task list size: ${this.tasks.length}`,
+						`[FluentTaskView] Current task list size: ${this.tasks.length}`
 					);
 
 					const task = this.tasks.find((t) => t.id === taskId);
 					if (task) {
 						console.log(
-							"[FluentTaskView] Task found, delegating to action handler",
+							"[FluentTaskView] Task found, delegating to action handler"
 						);
 						this.actionHandlers.handleKanbanTaskStatusUpdate(
 							task,
-							newStatusMark,
+							newStatusMark
 						);
 					} else {
 						console.error(
-							`[FluentTaskView] CRITICAL: Task ${taskId} not found in local task list`,
+							`[FluentTaskView] CRITICAL: Task ${taskId} not found in local task list`
 						);
 						console.error(
 							"[FluentTaskView] Available task IDs:",
-							this.tasks.slice(0, 5).map((t) => t.id),
+							this.tasks.slice(0, 5).map((t) => t.id)
 						);
 						console.error(
-							"[FluentTaskView] This indicates a synchronization issue between kanban and main view",
+							"[FluentTaskView] This indicates a synchronization issue between kanban and main view"
 						);
 					}
 				},
 			},
-			this.selectionManager,
+			this.selectionManager
 		);
 		this.addChild(this.componentManager);
 		this.componentManager.initializeViewComponents();
@@ -976,7 +987,7 @@ export class FluentTaskView extends ItemView {
 							this.workspaceStateManager.captureFilterStateSnapshot();
 						if (snapshot) {
 							await this.workspaceStateManager.saveFilterStateImmediately(
-								snapshot,
+								snapshot
 							);
 						}
 
@@ -998,7 +1009,7 @@ export class FluentTaskView extends ItemView {
 								this.liveFilterState = state;
 								this.app.saveLocalStorage(
 									"task-genius-view-filter",
-									state || null,
+									state || null
 								);
 							},
 							setCurrentFilterState: (state) => {
@@ -1017,14 +1028,14 @@ export class FluentTaskView extends ItemView {
 									const availableModes =
 										this.componentManager?.getAvailableModesForView(
 											this.currentViewId,
-											selectedProject,
+											selectedProject
 										) ?? [];
 									if (
 										availableModes.length > 0 &&
 										!availableModes.includes(viewMode)
 									) {
 										return this.ensureViewModeForView(
-											this.currentViewId,
+											this.currentViewId
 										);
 									}
 									return viewMode;
@@ -1032,7 +1043,7 @@ export class FluentTaskView extends ItemView {
 								this.viewState.viewMode = normalizedMode;
 								this.recordViewModeForView(
 									this.currentViewId,
-									normalizedMode,
+									normalizedMode
 								);
 								this.topNavigation?.setViewMode(normalizedMode);
 								if (clearSearch) {
@@ -1048,7 +1059,7 @@ export class FluentTaskView extends ItemView {
 						// Reload tasks
 						await this.dataManager.loadTasks();
 					}
-				}),
+				})
 			);
 
 			// Workspace overrides saved event
@@ -1058,7 +1069,7 @@ export class FluentTaskView extends ItemView {
 						await this.workspaceStateManager.applyWorkspaceSettings();
 						await this.dataManager.loadTasks();
 					}
-				}),
+				})
 			);
 
 			// Settings changed event (skip for filter state changes)
@@ -1066,7 +1077,7 @@ export class FluentTaskView extends ItemView {
 				on(this.app, Events.SETTINGS_CHANGED, async () => {
 					// Reload on settings change (unless caused by filter state save)
 					await this.dataManager.loadTasks();
-				}),
+				})
 			);
 		}
 
@@ -1076,8 +1087,8 @@ export class FluentTaskView extends ItemView {
 				"task-genius:filter-changed",
 				(filterState: RootFilterState, leafId?: string) => {
 					this.handleFilterChanged(filterState, leafId);
-				},
-			),
+				}
+			)
 		);
 
 		// Sidebar selection changed (when using side leaves)
@@ -1091,7 +1102,7 @@ export class FluentTaskView extends ItemView {
 						) {
 							this.currentViewId = payload.selectionId;
 							this.filteredTasks = this.dataManager.applyFilters(
-								this.tasks,
+								this.tasks
 							);
 							this.updateView();
 							this.workspaceStateManager.saveFilterStateToWorkspace();
@@ -1102,11 +1113,11 @@ export class FluentTaskView extends ItemView {
 						) {
 							// Use the full project selection logic via actionHandlers
 							this.actionHandlers.handleProjectSelect(
-								payload.selectionId || "",
+								payload.selectionId || ""
 							);
 						}
 					}
-				}),
+				})
 			);
 		}
 
@@ -1134,14 +1145,14 @@ export class FluentTaskView extends ItemView {
 		}
 
 		console.log(
-			`[Task Genius] Proceeding with view update for ${this.currentViewId}`,
+			`[Task Genius] Proceeding with view update for ${this.currentViewId}`
 		);
 
 		// Update top navigation available modes based on current view
 		const availableModes =
 			this.componentManager?.getAvailableModesForView(
 				this.currentViewId,
-				this.viewState.selectedProject,
+				this.viewState.selectedProject
 			) ?? [];
 		this.topNavigation?.updateAvailableModes(availableModes);
 
@@ -1197,7 +1208,7 @@ export class FluentTaskView extends ItemView {
 			this.filteredTasks,
 			this.currentFilterState,
 			this.viewState.viewMode,
-			this.viewState.selectedProject,
+			this.viewState.selectedProject
 		);
 	}
 
