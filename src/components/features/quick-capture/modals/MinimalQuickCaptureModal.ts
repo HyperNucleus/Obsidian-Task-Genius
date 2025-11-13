@@ -846,18 +846,10 @@ export class MinimalQuickCaptureModal extends Modal {
 			}
 			// Don't delete existing priority if not found in content
 
-			// Tags - only add new tags, don't replace existing ones
-			if (tags && tags.length > 0) {
-				if (!this.taskMetadata.tags) {
-					this.taskMetadata.tags = [];
-				}
-				// Merge new tags with existing ones, avoid duplicates
-				tags.forEach((tag) => {
-					if (!this.taskMetadata.tags!.includes(tag)) {
-						this.taskMetadata.tags!.push(tag);
-					}
-				});
-			}
+			// Replace tags from content parsing (don't accumulate intermediate typing states)
+			// This prevents duplicate tags when typing multi-level tags character by character
+			// e.g., typing #tags/test won't create #tags, #tags/, #tags/t, #tags/te, etc.
+			this.taskMetadata.tags = tags.length > 0 ? [...tags] : [];
 
 			// Update button states based on current taskMetadata
 			this.updateButtonState(
