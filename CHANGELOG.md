@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 
 
+## [9.10.0](https://github.com/Quorafind/Obsidian-Task-Genius/compare/9.9.9...9.10.0) (2025-11-13)
+
+### Features
+
+* **fluent:** add custom button support to top navigation ([2177d9a](https://github.com/Quorafind/Obsidian-Task-Genius/commit/2177d9a))
+* **grouping:** add task grouping system with multiple dimensions ([bcd3f2b](https://github.com/Quorafind/Obsidian-Task-Genius/commit/bcd3f2b))
+
+### Refactors
+
+* improve code quality and use Obsidian API methods ([0878bf1](https://github.com/Quorafind/Obsidian-Task-Genius/commit/0878bf1))
+
+### Styles
+
+* update group-by style issue ([2b7301b](https://github.com/Quorafind/Obsidian-Task-Genius/commit/2b7301b))
+
 ## [9.9.9](https://github.com/Quorafind/Obsidian-Task-Genius/compare/9.9.8...9.9.9) (2025-11-12)
 
 ### Features
