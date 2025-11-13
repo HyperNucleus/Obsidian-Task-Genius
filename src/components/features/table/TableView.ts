@@ -279,7 +279,7 @@ export class TableView extends Component {
 		// Create loading indicator
 		this.loadingEl = this.tableWrapper.createDiv("task-table-loading");
 		this.loadingEl.textContent = t("Loading...");
-		this.loadingEl.style.display = "none";
+		this.loadingEl.toggle(false);
 	}
 
 	private initializeChildComponents() {

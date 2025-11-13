@@ -45,7 +45,7 @@ export class KanbanColumnComponent extends Component {
 	override onload(): void {
 		this.element = this.containerEl.createDiv({
 			cls: "tg-kanban-column",
-			attr: {"data-status-name": this.statusName},
+			attr: { "data-status-name": this.statusName },
 		});
 
 		// Hide column if no tasks and hideEmptyColumns is enabled
@@ -67,7 +67,9 @@ export class KanbanColumnComponent extends Component {
 			this.plugin.settings.taskStatusMarks[this.statusName] || " ";
 		checkbox.dataset.task = mark;
 		// Only show the header checkbox as checked for the Completed column
-		const completedChars = (this.plugin.settings.taskStatuses?.completed || "x|X").split("|");
+		const completedChars = (
+			this.plugin.settings.taskStatuses?.completed || "x|X"
+		).split("|");
 		checkbox.checked = completedChars.includes(mark);
 
 		this.registerDomEvent(checkbox, "click", (event) => {
@@ -122,7 +124,7 @@ export class KanbanColumnComponent extends Component {
 			new QuickCaptureModal(
 				this.app,
 				this.plugin,
-				{status: taskStatusSymbol},
+				{ status: taskStatusSymbol },
 				true
 			).open();
 		});
@@ -256,11 +258,10 @@ export class KanbanColumnComponent extends Component {
 
 	// Hide/show the column
 	public setVisible(visible: boolean) {
+		this.element.toggle(visible);
 		if (visible) {
-			this.element.style.display = "";
 			this.element.classList.remove("tg-kanban-column-hidden");
 		} else {
-			this.element.style.display = "none";
 			this.element.classList.add("tg-kanban-column-hidden");
 		}
 	}

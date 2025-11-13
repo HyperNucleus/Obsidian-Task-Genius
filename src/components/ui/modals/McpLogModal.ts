@@ -175,7 +175,7 @@ export class McpLogModal extends Modal {
 			const detailsEl = logEntry.createDiv({
 				cls: "mcp-log-details",
 			});
-			detailsEl.style.display = "none";
+			detailsEl.hide();
 
 			// Arguments
 			if (log.arguments && Object.keys(log.arguments).length > 0) {

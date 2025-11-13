@@ -163,17 +163,17 @@ export class TableHeader extends Component {
 		this.columnBtn.title = t("Toggle column visibility");
 
 		const columnMenu = columnDropdown.createDiv("column-dropdown-menu");
-		columnMenu.style.display = "none";
+		columnMenu.toggle(false);
 
 		this.registerDomEvent(this.columnBtn, "click", (e) => {
 			e.stopPropagation();
-			const isVisible = columnMenu.style.display !== "none";
-			columnMenu.style.display = isVisible ? "none" : "block";
+			const isVisible = !columnMenu.isShown();
+			columnMenu.toggle(isVisible);
 		});
 
 		// Close dropdown when clicking outside
 		this.registerDomEvent(document, "click", () => {
-			columnMenu.style.display = "none";
+			columnMenu.toggle(false);
 		});
 
 		// Store column menu for later updates

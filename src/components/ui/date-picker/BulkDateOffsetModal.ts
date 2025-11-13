@@ -80,12 +80,14 @@ export class BulkDateOffsetModal extends Modal {
 		});
 		customSection.style.marginTop = "var(--size-4-6)";
 		customSection.style.paddingTop = "var(--size-4-3)";
-		customSection.style.borderTop = "1px solid var(--background-modifier-border)";
+		customSection.style.borderTop =
+			"1px solid var(--background-modifier-border)";
 
 		const customLabel = customSection.createEl("label", {
 			text: "Custom offset (days):",
 		});
-		customLabel.style.display = "block";
+		// customLabel.style.display = "block";
+		customLabel.show();
 		customLabel.style.marginBottom = "var(--size-2-3)";
 
 		const customInputContainer = customSection.createDiv();

@@ -1,4 +1,4 @@
-import TaskProgressBarPlugin from '@/index';
+import TaskProgressBarPlugin from "@/index";
 import {
 	Component,
 	debounce,
@@ -7,7 +7,7 @@ import {
 	TFile,
 } from "obsidian";
 import { getTasksAPI } from "@/utils";
-import { parseTaskLine } from '@/utils/task/task-operations';
+import { parseTaskLine } from "@/utils/task/task-operations";
 
 // This component replaces standard checkboxes with custom text marks in reading view
 export function applyTaskTextMarks({
@@ -363,7 +363,7 @@ class TaskTextMark extends Component {
 
 		// Show the original checkbox again
 		if (this.originalCheckbox) {
-			this.originalCheckbox.style.display = "";
+			this.originalCheckbox.show();
 		}
 
 		super.unload();

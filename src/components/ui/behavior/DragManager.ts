@@ -342,7 +342,7 @@ export class DragManager extends Component {
 			const originalDisplay = elementToHide.style.display;
 			// Only hide if it's the clone, otherwise elementFromPoint gets the original element itself
 			if (this.options.cloneElement) {
-				elementToHide.style.display = "none";
+				elementToHide.hide();
 			}
 
 			const elementUnderPointer = document.elementFromPoint(
