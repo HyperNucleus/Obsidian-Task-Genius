@@ -8,11 +8,131 @@ import { GroupByDimension, TaskGroup } from "@/types/groupBy";
 import { t } from "@/translations/helper";
 
 /**
+ * Default status mark to display name mapping
+ * Based on common task management conventions and Tasks plugin compatibility
+ * Used as fallback when status mark is not found in user's taskStatusMarks configuration
+ */
+const DEFAULT_STATUS_NAMES: Record<string, string> = {
+	// Standard statuses
+	" ": "Todo",           // Incomplete/Not started
+	"x": "Done",           // Completed (lowercase)
+	"X": "Done",           // Completed (uppercase)
+	"-": "Cancelled",      // Cancelled/Abandoned
+
+	// Progress indicators
+	"/": "In Progress",    // Half-done/In progress
+	">": "Forwarded",      // Deferred/Forwarded
+	"<": "Scheduled",      // Scheduled for later
+
+	// Priority/importance markers
+	"!": "Important",      // Important/High priority
+	"*": "Star",           // Starred/Favorite
+
+	// Question/tentative
+	"?": "Question",       // Uncertain/Question
+
+	// Extended status marks (from various task management systems)
+	"i": "Info",           // Information
+	"I": "Idea",           // Idea
+	"S": "Started",        // Started
+	"p": "Pro",            // Pro/Professional
+	"c": "Choice",         // Choice
+	"l": "Location",       // Location-based
+	"b": "Bookmark",       // Bookmarked
+	"f": "Fire",           // Urgent/Fire
+	"k": "Key",            // Key task
+	"w": "Win",            // Won/Achieved
+	"u": "Up",             // Ongoing/Up
+	"d": "Down",           // Deprecated/Down
+	'"': "Quote",          // Quoted/Referenced
+	"B": "Bug",            // Bug/Issue
+
+	// Numeric progress indicators (0-5 scale)
+	"0": "0/5",
+	"1": "1/5",
+	"2": "2/5",
+	"3": "3/5",
+	"4": "4/5",
+	"5": "5/5",
+
+	// Other
+	"n": "Note",           // Note
+};
+
+/**
+ * Format status key to readable text
+ * Handles camelCase, snake_case, and kebab-case
+ * @example formatStatusKey("IN_PROGRESS") => "In Progress"
+ * @example formatStatusKey("inProgress") => "In Progress"
+ */
+function formatStatusKey(key: string): string {
+	return key
+		.replace(/([a-z])([A-Z])/g, "$1 $2") // camelCase -> camel Case
+		.replace(/[-_]+/g, " ") // snake_case/kebab-case -> spaces
+		.split(" ")
+		.filter(Boolean)
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+		.join(" ");
+}
+
+/**
+ * Convert status mark to display name using task status marks mapping
+ * Performs reverse lookup in taskStatusMarks to find the configured status name
+ * Falls back to default status names, then formatting if no mapping is found
+ *
+ * Lookup priority:
+ * 1. User-configured taskStatusMarks (highest priority)
+ * 2. DEFAULT_STATUS_NAMES (common status marks)
+ * 3. formatStatusKey (generic formatting fallback)
+ *
+ * @param mark - Status mark from task (e.g., "x", ">", "-", " ")
+ * @param taskStatusMarks - Status marks mapping from plugin settings
+ * @returns Display name (e.g., "Completed", "In Progress", "Abandoned")
+ *
+ * @example
+ * // With taskStatusMarks = { "Completed": "x", "In Progress": ">", "Abandoned": "-" }
+ * getStatusDisplayName("x", taskStatusMarks) => "Completed"
+ * getStatusDisplayName(">", taskStatusMarks) => "In Progress"
+ * getStatusDisplayName("/", taskStatusMarks) => "In Progress" (from DEFAULT_STATUS_NAMES)
+ * getStatusDisplayName("unknown", taskStatusMarks) => "Unknown" (from formatStatusKey)
+ */
+function getStatusDisplayName(
+	mark: string,
+	taskStatusMarks?: Record<string, string>
+): string {
+	// Priority 1: User-configured taskStatusMarks
+	if (taskStatusMarks) {
+		for (const [statusName, statusMark] of Object.entries(taskStatusMarks)) {
+			// Match both exact and case-insensitive
+			if (statusMark === mark ||
+			    (statusMark && statusMark.toLowerCase() === mark.toLowerCase())) {
+				return statusName;
+			}
+		}
+	}
+
+	// Priority 2: Check default status names mapping
+	if (mark in DEFAULT_STATUS_NAMES) {
+		return DEFAULT_STATUS_NAMES[mark];
+	}
+
+	// Priority 3: Fallback formatting for unknown marks
+	// Handle empty/whitespace marks
+	if (!mark || mark.trim().length === 0) {
+		return DEFAULT_STATUS_NAMES[" "] || "Todo";
+	}
+
+	// Use generic formatting for completely unknown marks
+	return formatStatusKey(mark);
+}
+
+/**
  * Main grouping function - dispatches to specific grouping strategies
  */
 export function groupTasksBy(
 	tasks: Task[],
-	dimension: GroupByDimension
+	dimension: GroupByDimension,
+	taskStatusMarks?: Record<string, string>
 ): TaskGroup[] {
 	switch (dimension) {
 		case "none":
@@ -28,7 +148,7 @@ export function groupTasksBy(
 		case "tags":
 			return groupTasksByTags(tasks);
 		case "status":
-			return groupTasksByStatus(tasks);
+			return groupTasksByStatus(tasks, taskStatusMarks);
 		default:
 			return groupTasksNone(tasks);
 	}
@@ -539,8 +659,16 @@ export function groupTasksByTags(tasks: Task[]): TaskGroup[] {
 
 /**
  * Group tasks by status
+ * Uses taskStatusMarks mapping to display user-configured status names
+ *
+ * @param tasks - Array of tasks to group
+ * @param taskStatusMarks - Optional status marks mapping from plugin settings
+ * @returns Array of task groups organized by status
  */
-export function groupTasksByStatus(tasks: Task[]): TaskGroup[] {
+export function groupTasksByStatus(
+	tasks: Task[],
+	taskStatusMarks?: Record<string, string>
+): TaskGroup[] {
 	const groupMap = new Map<string, Task[]>();
 
 	tasks.forEach((task) => {
@@ -573,14 +701,8 @@ export function groupTasksByStatus(tasks: Task[]): TaskGroup[] {
 	});
 
 	sortedKeys.forEach((key, index) => {
-		// Format status for display
-		const displayStatus = key
-			.split("_")
-			.map(
-				(word) =>
-					word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-			)
-			.join(" ");
+		// Get display name using status marks mapping or fallback formatting
+		const displayStatus = getStatusDisplayName(key, taskStatusMarks);
 
 		groups.push({
 			title: displayStatus,

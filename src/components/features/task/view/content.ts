@@ -315,7 +315,8 @@ export class ContentComponent extends Component {
 		} else {
 			this.taskGroups = groupTasksBy(
 				this.filteredTasks,
-				this.groupByDimension
+				this.groupByDimension,
+				this.plugin.settings.taskStatusMarks
 			);
 		}
 	}

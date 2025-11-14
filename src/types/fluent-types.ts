@@ -19,3 +19,21 @@ export type FluentTaskNavigationItem = {
 	action?: () => void;
 	badge?: number;
 };
+
+/**
+ * Error context for structured error display
+ */
+export interface ErrorContext {
+	/** View ID (inbox, today, projects, etc.) */
+	viewId?: string;
+	/** Component name (ContentComponent, KanbanComponent, etc.) */
+	componentName?: string;
+	/** Operation description (e.g., "Loading tasks", "Switching view") */
+	operation?: string;
+	/** File path where error occurred */
+	filePath?: string;
+	/** Original error object */
+	originalError?: Error;
+	/** User-friendly error message */
+	userMessage?: string;
+}

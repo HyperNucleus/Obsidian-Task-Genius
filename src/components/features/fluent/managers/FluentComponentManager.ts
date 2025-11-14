@@ -22,6 +22,7 @@ import { QuickCaptureModal } from "@/components/features/quick-capture/modals/Qu
 import { t } from "@/translations/helper";
 import { ViewMode, TopNavigation } from "../components/FluentTopNavigation";
 import { TaskSelectionManager } from "@/components/features/task/selection/TaskSelectionManager";
+import { ErrorContext } from "@/types/fluent-types";
 
 type ManagedViewComponent = {
 	containerEl: HTMLElement;
@@ -49,6 +50,18 @@ const VIEW_MODE_CONFIG: Record<string, ViewMode[]> = {
 	gantt: [],
 	calendar: [],
 	kanban: [],
+};
+
+// CSS class names for error state display
+const ERROR_CSS_CLASSES = {
+	STATE: "tg-fluent-error-state",
+	ICON: "tg-fluent-error-icon",
+	TITLE: "tg-fluent-error-title",
+	CONTEXT: "tg-fluent-error-context",
+	CONTEXT_ITEM: "tg-fluent-error-context-item",
+	MESSAGE: "tg-fluent-error-message",
+	DETAILS: "tg-fluent-error-details",
+	STACK: "tg-fluent-error-stack",
 };
 
 /**
@@ -873,39 +886,206 @@ export class FluentComponentManager extends Component {
 	}
 
 	/**
-	 * Render error state
+	 * Render error state with detailed context
 	 */
-	renderErrorState(errorMessage: string, onRetry: () => void): void {
-		if (this.contentArea) {
-			this.contentArea
-				.querySelectorAll(".tg-fluent-error-state")
-				.forEach((el) => el.remove());
+	renderErrorState(context: ErrorContext | string, onRetry: () => void): void {
+		if (!this.contentArea) return;
 
-			const errorEl = this.contentArea.createDiv({
-				cls: "tg-fluent-error-state",
-			});
-			const errorIcon = errorEl.createDiv({
-				cls: "tg-fluent-error-icon",
-			});
-			setIcon(errorIcon, "alert-triangle");
+		// Parse context: support both new (ErrorContext) and old (string) formats
+		const errorContext = this.parseErrorContext(context);
 
-			errorEl.createDiv({
-				cls: "tg-fluent-error-title",
-				text: t("Failed to load tasks"),
-			});
+		// Remove existing error overlays
+		this.contentArea
+			.querySelectorAll(`.${ERROR_CSS_CLASSES.STATE}`)
+			.forEach((el) => el.remove());
 
-			errorEl.createDiv({
-				cls: "tg-fluent-error-message",
-				text: errorMessage || t("An unexpected error occurred"),
-			});
+		// Create error container
+		const errorEl = this.contentArea.createDiv({
+			cls: ERROR_CSS_CLASSES.STATE,
+		});
 
-			const retryBtn = errorEl.createEl("button", {
-				cls: "tg-fluent-button tg-fluent-button-primary",
-				text: t("Retry"),
-			});
+		// Build error UI components
+		this.createErrorIcon(errorEl);
+		this.createErrorTitle(errorEl);
+		this.createErrorContext(errorEl, errorContext);
+		this.createErrorMessage(errorEl, errorContext);
+		this.createTechnicalDetails(errorEl, errorContext);
+		this.createRetryButton(errorEl, onRetry);
+	}
 
-			retryBtn.addEventListener("click", onRetry);
+	/**
+	 * Parse error context from various input formats
+	 */
+	private parseErrorContext(context: ErrorContext | string): ErrorContext {
+		if (typeof context === "string") {
+			// Backward compatibility: convert string to ErrorContext
+			return {
+				userMessage: context,
+				originalError: new Error(context),
+			};
 		}
+		return context;
+	}
+
+	/**
+	 * Create error icon element
+	 */
+	private createErrorIcon(errorEl: HTMLElement): void {
+		const errorIcon = errorEl.createDiv({
+			cls: ERROR_CSS_CLASSES.ICON,
+		});
+		setIcon(errorIcon, "alert-triangle");
+	}
+
+	/**
+	 * Create error title element
+	 */
+	private createErrorTitle(errorEl: HTMLElement): void {
+		errorEl.createDiv({
+			cls: ERROR_CSS_CLASSES.TITLE,
+			text: t("Failed to load tasks"),
+		});
+	}
+
+	/**
+	 * Create error context information (view, component, operation)
+	 */
+	private createErrorContext(
+		errorEl: HTMLElement,
+		errorContext: ErrorContext
+	): void {
+		if (
+			!errorContext.viewId &&
+			!errorContext.componentName &&
+			!errorContext.operation
+		) {
+			return;
+		}
+
+		const contextEl = errorEl.createDiv({
+			cls: ERROR_CSS_CLASSES.CONTEXT,
+		});
+
+		if (errorContext.viewId) {
+			const viewLabel = this.getViewLabel(errorContext.viewId);
+			contextEl.createDiv({
+				cls: ERROR_CSS_CLASSES.CONTEXT_ITEM,
+				text: `${t("View")}: ${viewLabel} (${errorContext.viewId})`,
+			});
+		}
+
+		if (errorContext.componentName) {
+			contextEl.createDiv({
+				cls: ERROR_CSS_CLASSES.CONTEXT_ITEM,
+				text: `${t("Component")}: ${errorContext.componentName}`,
+			});
+		}
+
+		if (errorContext.operation) {
+			contextEl.createDiv({
+				cls: ERROR_CSS_CLASSES.CONTEXT_ITEM,
+				text: `${t("Operation")}: ${errorContext.operation}`,
+			});
+		}
+	}
+
+	/**
+	 * Create user-friendly error message
+	 */
+	private createErrorMessage(
+		errorEl: HTMLElement,
+		errorContext: ErrorContext
+	): void {
+		const userMessage =
+			errorContext.userMessage ||
+			errorContext.originalError?.message ||
+			t("An unexpected error occurred");
+
+		errorEl.createDiv({
+			cls: ERROR_CSS_CLASSES.MESSAGE,
+			text: userMessage,
+		});
+	}
+
+	/**
+	 * Create collapsible technical details section
+	 */
+	private createTechnicalDetails(
+		errorEl: HTMLElement,
+		errorContext: ErrorContext
+	): void {
+		if (!errorContext.originalError) return;
+
+		const detailsEl = errorEl.createEl("details", {
+			cls: ERROR_CSS_CLASSES.DETAILS,
+		});
+
+		detailsEl.createEl("summary", {
+			text: t("View technical details"),
+		});
+
+		const stackEl = detailsEl.createEl("pre", {
+			cls: ERROR_CSS_CLASSES.STACK,
+		});
+
+		// Build technical details
+		let technicalInfo = "";
+		if (errorContext.filePath) {
+			technicalInfo += `File: ${errorContext.filePath}\n\n`;
+		}
+		if (errorContext.originalError.stack) {
+			technicalInfo += errorContext.originalError.stack;
+		} else {
+			technicalInfo += errorContext.originalError.message;
+		}
+
+		stackEl.textContent = technicalInfo;
+	}
+
+	/**
+	 * Create retry button
+	 */
+	private createRetryButton(
+		errorEl: HTMLElement,
+		onRetry: () => void
+	): void {
+		const retryBtn = errorEl.createEl("button", {
+			cls: "tg-fluent-button tg-fluent-button-primary",
+			text: t("Retry"),
+		});
+
+		retryBtn.addEventListener("click", onRetry);
+	}
+
+	/**
+	 * Get localized view label
+	 */
+	private getViewLabel(viewId: string): string {
+		const labels: Record<string, string> = {
+			inbox: t("Inbox"),
+			today: t("Today"),
+			upcoming: t("Upcoming"),
+			flagged: t("Flagged"),
+			projects: t("Projects"),
+			tags: t("Tags"),
+			forecast: t("Forecast"),
+			review: t("Review"),
+			habit: t("Habit"),
+			calendar: t("Calendar"),
+			kanban: t("Kanban"),
+			gantt: t("Gantt"),
+		};
+		return labels[viewId] || viewId;
+	}
+
+	/**
+	 * Get current visible component name
+	 */
+	public getCurrentComponentName(): string | undefined {
+		if (!this.currentVisibleComponent) {
+			return undefined;
+		}
+		return this.currentVisibleComponent.constructor?.name;
 	}
 
 	/**

@@ -31,6 +31,25 @@ import { FileFilterManager } from "@/managers/file-filter-manager";
  * following the established dataflow patterns.
  */
 export class FileSource {
+	/**
+	 * Default status mappings from textual values to task symbols
+	 * Provides fallback mappings when user configuration doesn't specify a mapping
+	 */
+	private static readonly DEFAULT_STATUS_MAPPINGS: Record<string, string> = {
+		completed: "x",
+		done: "x",
+		finished: "x",
+		"in-progress": "/",
+		"in progress": "/",
+		doing: "/",
+		planned: "?",
+		todo: "?",
+		cancelled: "-",
+		canceled: "-",
+		"not-started": " ",
+		"not started": " ",
+	};
+
 	private config: FileSourceConfig;
 	private isInitialized = false;
 	private lastUpdateSeq = 0;
@@ -621,12 +640,28 @@ export class FileSource {
 				: filePath.split("/").pop() || filePath;
 
 		// Extract metadata from frontmatter
-		const metadata = this.extractTaskMetadata(
+		const metadataResult = this.extractTaskMetadata(
 			filePath,
 			fileContent,
 			fileCache,
 			strategy
 		);
+
+		// Separate rawStatus from metadata (rawStatus is not part of FileSourceTaskMetadata)
+		const { rawStatus, ...metadata } = metadataResult;
+
+		// Compute status symbol from raw frontmatter value (BaseTask layer)
+		const status = this.computeStatusSymbol(
+			rawStatus,
+			config.fileTaskProperties.defaultStatus
+		);
+
+		// Log status mapping if conversion occurred
+		if (rawStatus && status !== rawStatus) {
+			console.log(
+				`[FileSource] Mapped status '${rawStatus}' to '${status}' for ${filePath}`
+			);
+		}
 
 		// Create the file task
 		const fileTask: Task<FileSourceTaskMetadata> = {
@@ -634,8 +669,8 @@ export class FileSource {
 			content: safeContent,
 			filePath,
 			line: 0, // File tasks are at line 0
-			completed: metadata.status === "x" || metadata.status === "X",
-			status: metadata.status || config.fileTaskProperties.defaultStatus,
+			completed: status === "x" || status === "X",
+			status: status,
 			originalMarkdown: `**${safeContent}**`,
 			metadata: {
 				...metadata,
@@ -802,14 +837,46 @@ export class FileSource {
 	}
 
 	/**
+	 * Compute task status symbol from raw metadata value
+	 * Maps textual status values (e.g., "completed", "in-progress") to task status symbols (e.g., "x", "/")
+	 */
+	private computeStatusSymbol(
+		rawStatus: string | undefined,
+		defaultStatus: string
+	): string {
+		if (!rawStatus) return defaultStatus;
+		// Already a single-character mark
+		if (rawStatus.length === 1) return rawStatus;
+
+		const sm = this.config.getConfig().statusMapping;
+		const target = sm.caseSensitive
+			? rawStatus
+			: String(rawStatus).toLowerCase();
+
+		// Try configured metadata->symbol table first
+		for (const [k, sym] of Object.entries(sm.metadataToSymbol || {})) {
+			const key = sm.caseSensitive ? k : k.toLowerCase();
+			if (key === target) return sym;
+		}
+
+		// Fallback to common defaults to be robust
+		const norm = String(rawStatus).toLowerCase();
+		const defaultMapping = FileSource.DEFAULT_STATUS_MAPPINGS[norm];
+		if (defaultMapping !== undefined) return defaultMapping;
+
+		return defaultStatus;
+	}
+
+	/**
 	 * Extract task metadata from file
+	 * Returns metadata along with rawStatus for status symbol computation
 	 */
 	private extractTaskMetadata(
 		filePath: string,
 		fileContent: string,
 		fileCache: CachedMetadata | null,
 		strategy: { name: RecognitionStrategy; criteria: string }
-	): Partial<FileSourceTaskMetadata> {
+	): Partial<FileSourceTaskMetadata> & { rawStatus?: string } {
 		const config = this.config.getConfig();
 		const frontmatter = fileCache?.frontmatter || {};
 		const resolvedFrontmatter = this.applyMetadataMappings(
@@ -817,46 +884,9 @@ export class FileSource {
 			config.metadataMappings
 		);
 
-		// Derive status from frontmatter and eagerly map textual metadata to a symbol
-		const rawStatus = resolvedFrontmatter.status ?? "";
-		const toSymbol = (val: string): string => {
-			if (!val) return config.fileTaskProperties.defaultStatus;
-			// Already a single-character mark
-			if (val.length === 1) return val;
-			const sm = this.config.getConfig().statusMapping;
-			const target = sm.caseSensitive ? val : String(val).toLowerCase();
-			// Try configured metadata->symbol table first
-			for (const [k, sym] of Object.entries(sm.metadataToSymbol || {})) {
-				const key = sm.caseSensitive ? k : k.toLowerCase();
-				if (key === target) return sym;
-			}
-			// Fallback to common defaults to be robust
-			const defaults: Record<string, string> = {
-				completed: "x",
-				done: "x",
-				finished: "x",
-				"in-progress": "/",
-				"in progress": "/",
-				doing: "/",
-				planned: "?",
-				todo: "?",
-				cancelled: "-",
-				canceled: "-",
-				"not-started": " ",
-				"not started": " ",
-			};
-			const norm = String(val).toLowerCase();
-			if (defaults[norm] !== undefined) return defaults[norm];
-			return config.fileTaskProperties.defaultStatus;
-		};
-		let status = rawStatus
-			? toSymbol(rawStatus)
-			: config.fileTaskProperties.defaultStatus;
-		if (rawStatus && status !== rawStatus) {
-			console.log(
-				`[FileSource] Mapped status '${rawStatus}' to '${status}' for ${filePath}`
-			);
-		}
+		// Extract raw status value from frontmatter for later symbol mapping
+		const rawStatusVal = resolvedFrontmatter.status ?? "";
+		const rawStatus: string = typeof rawStatusVal === "string" ? rawStatusVal : String(rawStatusVal ?? "");
 
 		// TODO: Future enhancement - read frontmatter.repeat and map into FileSourceTaskMetadata (e.g., as recurrence)
 
@@ -876,7 +906,11 @@ export class FileSource {
 		// 1. Direct frontmatter field (project: xxx) - highest priority
 		// 2. Metadata mapping (e.g., custom_project mapped to project via metadataMappings)
 		// 3. Tag extraction (#project/xxx) - lowest priority, only if frontmatter has nothing
-		const projectValue = resolvedFrontmatter.project ?? projectFromTags;
+		const projectVal = resolvedFrontmatter.project ?? projectFromTags;
+		const projectValue: string | undefined =
+			projectVal !== undefined && projectVal !== null
+				? String(projectVal)
+				: undefined;
 
 		const shouldStripProjectTags =
 			!resolvedFrontmatter.project &&
@@ -905,21 +939,31 @@ export class FileSource {
 			recurrence:
 				typeof resolvedFrontmatter.recurrence === "string"
 					? resolvedFrontmatter.recurrence
-					: undefined,
+					: (resolvedFrontmatter.recurrence != null
+						? String(resolvedFrontmatter.recurrence)
+						: undefined),
 			priority:
 				this.parsePriority(resolvedFrontmatter.priority) ??
 				config.fileTaskProperties.defaultPriority,
 			// Project: frontmatter (direct or mapped) > tags (#project/xxx)
 			project: projectValue,
 			// Context and area: ONLY from frontmatter (direct or mapped via metadataMappings)
-			context: resolvedFrontmatter.context,
-			area: resolvedFrontmatter.area,
+			context:
+				resolvedFrontmatter.context !== undefined &&
+				resolvedFrontmatter.context !== null
+					? String(resolvedFrontmatter.context)
+					: undefined,
+			area:
+				resolvedFrontmatter.area !== undefined &&
+				resolvedFrontmatter.area !== null
+					? String(resolvedFrontmatter.area)
+					: undefined,
 			tags: tagsForMetadata,
-			status: status,
 			children: [],
 		};
 
-		return metadata;
+		// Return metadata with rawStatus for status computation in buildFileTask
+		return { ...metadata, rawStatus };
 	}
 
 	/**

@@ -10,7 +10,7 @@ import {
 	TopNavigation,
 	ViewMode,
 } from "@/components/features/fluent/components/FluentTopNavigation";
-import { FluentTaskViewState } from "@/types/fluent-types";
+import { FluentTaskViewState, ErrorContext } from "@/types/fluent-types";
 import {
 	onWorkspaceSwitched,
 	onWorkspaceOverridesSaved,
@@ -482,9 +482,16 @@ export class FluentTaskView extends ItemView {
 				if (error) {
 					this.loadError = error;
 					this.isLoading = false;
-					this.componentManager?.renderErrorState(error, () => {
-						this.dataManager.loadTasks();
-					});
+					this.componentManager?.renderErrorState(
+						this.createErrorContext(
+							error,
+							t("Loading tasks"),
+							"src/components/features/fluent/managers/FluentComponentManager.ts"
+						),
+						() => {
+							this.dataManager.loadTasks();
+						}
+					);
 				} else {
 					this.tasks = tasks;
 					this.loadError = null;
@@ -1182,9 +1189,16 @@ export class FluentTaskView extends ItemView {
 
 		// Show error state
 		if (this.loadError) {
-			this.componentManager.renderErrorState(this.loadError, () => {
-				this.dataManager.loadTasks();
-			});
+			this.componentManager.renderErrorState(
+				this.createErrorContext(
+					this.loadError,
+					t("Updating view"),
+					"src/pages/FluentTaskView.ts"
+				),
+				() => {
+					this.dataManager.loadTasks();
+				}
+			);
 			return;
 		}
 
@@ -1263,6 +1277,25 @@ export class FluentTaskView extends ItemView {
 	/**
 	 * Set state (for debugging)
 	 */
+	/**
+	 * Create error context object for structured error display
+	 */
+	private createErrorContext(
+		error: string | Error,
+		operation: string,
+		filePath: string
+	): ErrorContext {
+		return {
+			viewId: this.currentViewId,
+			componentName: this.componentManager?.getCurrentComponentName(),
+			operation: operation,
+			filePath: filePath,
+			userMessage: typeof error === "string" ? error : error?.message,
+			originalError:
+				error instanceof Error ? error : new Error(String(error)),
+		};
+	}
+
 	async setState(state: any, result: any) {
 		// Restore state if needed
 	}
