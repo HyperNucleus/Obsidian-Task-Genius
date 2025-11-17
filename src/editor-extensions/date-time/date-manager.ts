@@ -86,7 +86,14 @@ function handleAutoDateManagerTransaction(
 	}
 
 	// Apply date operations to the task line
-	return applyDateOperations(tr, doc, lineNumber, dateOperations, plugin);
+	const result = applyDateOperations(
+		tr,
+		doc,
+		lineNumber,
+		dateOperations,
+		plugin
+	);
+	return result;
 }
 
 /**
@@ -636,13 +643,6 @@ function applyDateOperations(
 				validTo = validFrom;
 			}
 
-			// Log only if positions changed
-			if (change.from !== validFrom || change.to !== validTo) {
-				console.log(
-					`[AutoDateManager] Position adjusted: (${change.from},${change.to}) -> (${validFrom},${validTo})`
-				);
-			}
-
 			return {
 				from: validFrom,
 				to: validTo,
@@ -668,13 +668,6 @@ function applyDateOperations(
 			});
 		});
 
-		// Only log if there are existing changes (indicating multiple filters)
-		if (existingChanges.length > 0) {
-			console.log(
-				`[AutoDateManager] Processing with ${existingChanges.length} existing changes from other filters`
-			);
-		}
-
 		// IMPORTANT: When we return changes combined with tr.changes,
 		// our change positions should be relative to the document state
 		// AFTER tr.changes is applied (which is tr.newDoc).
@@ -691,8 +684,8 @@ function applyDateOperations(
 			return true;
 		});
 
-		// Rebuild a single combined change list relative to the ORIGINAL doc
-		// 1) Take the original transaction's changes as specs (relative to startState)
+		// CRITICAL FIX: Correctly map positions from newDoc to startState
+		// 1) Collect base changes from tr (status-cycler's changes)
 		const baseChangeSpecs: { from: number; to: number; insert: string }[] =
 			[];
 		tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
@@ -702,14 +695,17 @@ function applyDateOperations(
 				insert: inserted.toString(),
 			});
 		});
-		// 2) Map our additional changes (currently in newDoc space) back to startState
-		const inverse = tr.changes.invert(tr.startState.doc);
+
+		// 2) Map our finalChanges (relative to newDoc) back to startState
+		// ✅ CORRECT: Use tr.changes.mapPos (NOT inverse.mapPos!)
 		const mappedFinalChanges = finalChanges.map((c) => ({
-			from: inverse.mapPos(c.from, -1),
-			to: inverse.mapPos(c.to, -1),
+			from: tr.changes.mapPos(c.from, -1),
+			to: tr.changes.mapPos(c.to, -1),
 			insert: c.insert,
 		}));
+
 		return {
+			// ✅ Combine both changes: base (status) + date
 			changes: [...baseChangeSpecs, ...mappedFinalChanges],
 			selection: tr.selection,
 			annotations: [

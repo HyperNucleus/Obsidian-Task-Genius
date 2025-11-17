@@ -377,12 +377,6 @@ export default class TaskProgressBarPlugin extends Plugin {
 				]);
 			}
 
-			if (this.settings.enableCycleCompleteStatus) {
-				this.registerEditorExtension([
-					cycleCompleteStatusExtension(this.app, this),
-				]);
-			}
-
 			this.registerMarkdownPostProcessor((el, ctx) => {
 				// Apply custom task text marks (replaces checkboxes with styled marks)
 				if (this.settings.enableTaskStatusSwitcher) {
@@ -1636,6 +1630,31 @@ export default class TaskProgressBarPlugin extends Plugin {
 			]);
 		}
 
+		// CRITICAL: Register in reverse order of desired execution
+		// (transactionFilters execute in reverse registration order)
+		//
+		// Desired execution order:
+		//   1. cycleCompleteStatus (processes Obsidian toggle, cycles status)
+		//   2. autoDateManager (adds/removes dates based on new status)
+		//   3. workflow (updates workflow stages if needed)
+		//
+		// Registration order (reverse):
+		//   1. workflow (already registered above)
+		//   2. autoDateManager (register second, executes second)
+		//   3. cycleCompleteStatus (register last, executes first)
+
+		if (this.settings.autoDateManager.enabled) {
+			this.registerEditorExtension([
+				autoDateManagerExtension(this.app, this),
+			]);
+		}
+
+		if (this.settings.enableCycleCompleteStatus) {
+			this.registerEditorExtension([
+				cycleCompleteStatusExtension(this.app, this),
+			]);
+		}
+
 		// Add quick capture extension
 		if (this.settings.quickCapture.enableQuickCapture) {
 			this.registerEditorExtension([
@@ -1655,13 +1674,6 @@ export default class TaskProgressBarPlugin extends Plugin {
 		// Add task filter extension
 		if (this.settings.taskFilter.enableTaskFilter) {
 			this.registerEditorExtension([taskFilterExtension(this)]);
-		}
-
-		// Add auto date manager extension
-		if (this.settings.autoDateManager.enabled) {
-			this.registerEditorExtension([
-				autoDateManagerExtension(this.app, this),
-			]);
 		}
 
 		// Add task mark cleanup extension (always enabled)

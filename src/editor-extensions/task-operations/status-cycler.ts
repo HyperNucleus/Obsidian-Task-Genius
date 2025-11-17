@@ -19,7 +19,7 @@ import { parseTaskLine } from "@/utils/task/task-operations";
  */
 export function cycleCompleteStatusExtension(
 	app: App,
-	plugin: TaskProgressBarPlugin,
+	plugin: TaskProgressBarPlugin
 ) {
 	return EditorState.transactionFilter.of((tr) => {
 		return handleCycleCompleteStatusTransaction(tr, app, plugin);
@@ -59,7 +59,7 @@ function isValidTaskMarkerReplacement(
 	originalText: string,
 	pos: number,
 	newLineText: string,
-	plugin: TaskProgressBarPlugin,
+	plugin: TaskProgressBarPlugin
 ): boolean {
 	// Only single character replacements are considered valid task marker operations
 	if (toA - fromA !== 1 || insertedText.length !== 1) {
@@ -102,7 +102,7 @@ function isValidTaskMarkerReplacement(
 
 	// Log successful validation for debugging
 	console.log(
-		`Valid task marker replacement detected. No user selection or selection doesn't cover replacement range. Original: '${originalText}' -> New: '${insertedText}' at position ${fromA}-${toA}`,
+		`Valid task marker replacement detected. No user selection or selection doesn't cover replacement range. Original: '${originalText}' -> New: '${insertedText}' at position ${fromA}-${toA}`
 	);
 
 	return true;
@@ -118,7 +118,7 @@ function isValidTaskMarkerReplacement(
 export function findTaskStatusChanges(
 	tr: Transaction,
 	tasksPluginLoaded: boolean,
-	plugin?: TaskProgressBarPlugin,
+	plugin?: TaskProgressBarPlugin
 ): {
 	position: number;
 	currentMark: string;
@@ -176,12 +176,12 @@ export function findTaskStatusChanges(
 					(change.text === "" &&
 						(tr.startState.doc.sliceString(
 							change.fromA,
-							change.toA,
+							change.toA
 						) === "\t" ||
 							tr.startState.doc.sliceString(
 								change.fromA,
-								change.toA,
-							) === "    ")),
+								change.toA
+							) === "    "))
 			);
 
 			if (allIndentChanges) {
@@ -203,14 +203,14 @@ export function findTaskStatusChanges(
 			toA: number,
 			fromB: number,
 			toB: number,
-			inserted: Text,
+			inserted: Text
 		) => {
 			// Check for deletion operation (inserted text is empty)
 			if (inserted.toString() === "" && toA > fromA) {
 				// Get the deleted content
 				const deletedContent = tr.startState.doc.sliceString(
 					fromA,
-					toA,
+					toA
 				);
 				// Check if the deleted content is a dash character
 				if (deletedContent === "-") {
@@ -218,14 +218,14 @@ export function findTaskStatusChanges(
 					const line = tr.startState.doc.lineAt(fromA);
 					const textBeforeDash = line.text.substring(
 						0,
-						fromA - line.from,
+						fromA - line.from
 					);
 					if (textBeforeDash.trim() === "") {
 						isDeletingTaskMarker = true;
 					}
 				}
 			}
-		},
+		}
 	);
 
 	if (isDeletingTaskMarker) {
@@ -239,7 +239,7 @@ export function findTaskStatusChanges(
 			toA: number,
 			fromB: number,
 			toB: number,
-			inserted: Text,
+			inserted: Text
 		) => {
 			// Get the inserted text
 			const insertedText = inserted.toString();
@@ -247,7 +247,7 @@ export function findTaskStatusChanges(
 			// Check if this is a new task creation with a newline
 			if (insertedText.includes("\n")) {
 				console.log(
-					"New task creation detected with newline, skipping",
+					"New task creation detected with newline, skipping"
 				);
 				return;
 			}
@@ -334,8 +334,8 @@ export function findTaskStatusChanges(
 							/[a-zA-Z]/.test(insertedText) &&
 							(plugin
 								? !Object.values(
-										getTaskStatusConfig(plugin).marks,
-									).includes(insertedText)
+										getTaskStatusConfig(plugin).marks
+								  ).includes(insertedText)
 								: true)
 						)
 					) {
@@ -343,7 +343,7 @@ export function findTaskStatusChanges(
 						if (fromA !== toA) {
 							const originalText = tr.startState.doc.sliceString(
 								fromA,
-								toA,
+								toA
 							);
 
 							// Only perform validation if plugin is provided
@@ -357,23 +357,23 @@ export function findTaskStatusChanges(
 										originalText,
 										pos,
 										newLineText,
-										plugin,
+										plugin
 									);
 
 								if (!isValidReplacement) {
 									console.log(
-										`Detected invalid task marker replacement (fromA=${fromA}, toA=${toA}). User manually input '${insertedText}' (original: '${originalText}'), skipping automatic cycling.`,
+										`Detected invalid task marker replacement (fromA=${fromA}, toA=${toA}). User manually input '${insertedText}' (original: '${originalText}'), skipping automatic cycling.`
 									);
 									return; // Skip this change, don't add to taskChanges
 								}
 
 								console.log(
-									`Detected valid task marker replacement (fromA=${fromA}, toA=${toA}). Original: '${originalText}' -> New: '${insertedText}', proceeding with automatic cycling.`,
+									`Detected valid task marker replacement (fromA=${fromA}, toA=${toA}). Original: '${originalText}' -> New: '${insertedText}', proceeding with automatic cycling.`
 								);
 							} else {
 								// Fallback to original logic for backwards compatibility
 								console.log(
-									`Detected replacement operation (fromA=${fromA}, toA=${toA}). User manually input '${insertedText}', skipping automatic cycling.`,
+									`Detected replacement operation (fromA=${fromA}, toA=${toA}). User manually input '${insertedText}', skipping automatic cycling.`
 								);
 								return; // Skip this change, don't add to taskChanges
 							}
@@ -434,12 +434,12 @@ export function findTaskStatusChanges(
 									originalFromB: fromB,
 									originalToB: toB,
 									originalInsertedText: insertedText,
-								}
+							  }
 							: null,
 					});
 				}
 			}
-		},
+		}
 	);
 
 	return taskChanges;
@@ -455,17 +455,17 @@ export function findTaskStatusChanges(
 export function handleCycleCompleteStatusTransaction(
 	tr: Transaction,
 	app: App,
-	plugin: TaskProgressBarPlugin,
+	plugin: TaskProgressBarPlugin
 ): TransactionSpec {
 	// Only process transactions that change the document and are user input events
 	if (!tr.docChanged) {
 		return tr;
 	}
 
-	if (
-		tr.annotation(taskStatusChangeAnnotation) ||
-		tr.annotation(priorityChangeAnnotation)
-	) {
+	const taskAnnotation = tr.annotation(taskStatusChangeAnnotation);
+	const priorityAnnotation = tr.annotation(priorityChangeAnnotation);
+
+	if (taskAnnotation || priorityAnnotation) {
 		return tr;
 	}
 
@@ -507,7 +507,7 @@ export function handleCycleCompleteStatusTransaction(
 			toA: number,
 			fromB: number,
 			toB: number,
-			inserted: Text,
+			inserted: Text
 		) => {
 			// Check if this removes a dash character and somehow modifies a task marker elsewhere
 			const insertedText = inserted.toString();
@@ -520,13 +520,13 @@ export function handleCycleCompleteStatusTransaction(
 				tr.newDoc
 					.sliceString(
 						Math.max(0, fromB - 5),
-						Math.min(fromB + 5, tr.newDoc.length),
+						Math.min(fromB + 5, tr.newDoc.length)
 					)
 					.includes("[")
 			) {
 				hasInvalidTaskChange = true;
 			}
-		},
+		}
 	);
 
 	if (hasInvalidTaskChange) {
@@ -537,7 +537,7 @@ export function handleCycleCompleteStatusTransaction(
 	const taskStatusChanges = findTaskStatusChanges(
 		tr,
 		!!getTasksAPI(plugin),
-		plugin,
+		plugin
 	);
 	if (taskStatusChanges.length === 0) {
 		return tr;
@@ -546,7 +546,7 @@ export function handleCycleCompleteStatusTransaction(
 	// Get the task cycle and marks from plugin settings
 	const { cycle, marks, excludeMarksFromCycle } = getTaskStatusConfig(plugin);
 	const remainingCycle = cycle.filter(
-		(state) => !excludeMarksFromCycle.includes(state),
+		(state) => !excludeMarksFromCycle.includes(state)
 	);
 
 	// If no cycle is defined, don't do anything
@@ -577,7 +577,7 @@ export function handleCycleCompleteStatusTransaction(
 
 		// Check for deletions and task changes in the same transaction
 		const hasDeletion = changes.some(
-			(change) => change.text === "" && change.toA > change.fromA,
+			(change) => change.text === "" && change.toA > change.fromA
 		);
 		const hasTaskMarkerChange = changes.some((change) => {
 			// Check if this change affects a task marker position [x]
@@ -709,14 +709,14 @@ export function handleCycleCompleteStatusTransaction(
 
 		// Log the cycle calculation for debugging
 		console.log(
-			`[Status Cycler] Calculated cycle: '${currentMark}' (${remainingCycle[currentStatusIndex]}) → '${nextMark}' (${nextStatus})`,
+			`[Status Cycler] Calculated cycle: '${currentMark}' (${remainingCycle[currentStatusIndex]}) → '${nextMark}' (${nextStatus})`
 		);
 
 		// Check if the current mark is the same as what would be the next mark in the cycle
 		// If they are the same, we don't need to process this further
 		if (currentMark === nextMark) {
 			console.log(
-				`Current mark '${currentMark}' is already the next mark in the cycle. Skipping processing.`,
+				`Current mark '${currentMark}' is already the next mark in the cycle. Skipping processing.`
 			);
 			continue;
 		}
@@ -735,7 +735,7 @@ export function handleCycleCompleteStatusTransaction(
 		// If user's input already matches the next mark, don't cycle
 		if (userInputMark === nextMark) {
 			console.log(
-				`User input '${userInputMark}' already matches the next mark '${nextMark}' in the cycle. Skipping processing.`,
+				`User input '${userInputMark}' already matches the next mark '${nextMark}' in the cycle. Skipping processing.`
 			);
 			continue;
 		}
@@ -744,7 +744,7 @@ export function handleCycleCompleteStatusTransaction(
 		const posLine = tr.newDoc.lineAt(position);
 		const newLineText = posLine.text;
 		const originalPosLine = tr.startState.doc.lineAt(
-			Math.min(position, tr.startState.doc.length),
+			Math.min(position, tr.startState.doc.length)
 		);
 		const originalLineText = originalPosLine.text;
 
@@ -785,7 +785,7 @@ export function handleCycleCompleteStatusTransaction(
 			// This prevents unexpected data loss when creating a task
 			if (isNewEmptyTask || isManualTaskCreation) {
 				console.log(
-					`New empty task detected with mark ' ', leaving as is regardless of alwaysCycleNewTasks setting`,
+					`New empty task detected with mark ' ', leaving as is regardless of alwaysCycleNewTasks setting`
 				);
 				continue;
 			}
@@ -804,7 +804,7 @@ export function handleCycleCompleteStatusTransaction(
 		// Check if the mark position is within the current line and valid
 		if (markPosition < lineAtMark.from || markPosition >= lineEnd) {
 			console.log(
-				`Mark position ${markPosition} is beyond the current line range ${lineAtMark.from}-${lineEnd}, skipping processing`,
+				`Mark position ${markPosition} is beyond the current line range ${lineAtMark.from}-${lineEnd}, skipping processing`
 			);
 			continue;
 		}
@@ -813,7 +813,7 @@ export function handleCycleCompleteStatusTransaction(
 		const validTo = Math.min(markPosition + 1, lineEnd);
 		if (validTo <= markPosition) {
 			console.log(
-				`Invalid modification range ${markPosition}-${validTo}, skipping processing`,
+				`Invalid modification range ${markPosition}-${validTo}, skipping processing`
 			);
 			continue;
 		}
@@ -824,7 +824,7 @@ export function handleCycleCompleteStatusTransaction(
 
 		// Log the status cycle for debugging
 		console.log(
-			`[Status Cycler] Cycling at position ${markPosition}: '${currentMark}' → '${nextMark}'`,
+			`[Status Cycler] Cycling at position ${markPosition}: '${currentMark}' → '${nextMark}'`
 		);
 
 		// Always use the calculated nextMark for consistent cycling behavior
@@ -837,6 +837,14 @@ export function handleCycleCompleteStatusTransaction(
 
 	// If we found any changes to make, create a new transaction
 	if (newChanges.length > 0) {
+		console.log(`  - ✅ Returning ${newChanges.length} status changes:`);
+		newChanges.forEach((change, i) => {
+			console.log(
+				`    [${i}] Position ${change.from}-${change.to} → "${change.insert}"`
+			);
+		});
+		console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
 		const editorInfo = tr.startState.field(editorInfoField);
 		const change = newChanges[0];
 		const line = tr.newDoc.lineAt(change.from);
@@ -845,7 +853,7 @@ export function handleCycleCompleteStatusTransaction(
 			line.text,
 			line.number,
 			plugin.settings.preferMetadataFormat,
-			plugin, // Pass plugin for configurable prefix support
+			plugin // Pass plugin for configurable prefix support
 		);
 		// if (completingTask && task) {
 		// 	app.workspace.trigger("task-genius:task-completed", task);
@@ -858,6 +866,8 @@ export function handleCycleCompleteStatusTransaction(
 	}
 
 	// If no changes were made, return the original transaction
+	console.log("  - ❌ No changes to apply");
+	console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 	return tr;
 }
 
