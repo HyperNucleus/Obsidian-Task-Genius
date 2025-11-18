@@ -24,7 +24,7 @@ export interface CustomNavButton {
 
 export function isCompletedMark(
 	plugin: TaskProgressBarPlugin,
-	mark: string
+	mark: string,
 ): boolean {
 	if (!mark) return false;
 	try {
@@ -48,7 +48,13 @@ export class TopNavigation extends Component {
 	private availableModes: ViewMode[] = ["list", "kanban", "tree", "calendar"];
 	private viewTabsContainer: HTMLElement | null = null;
 	private customButtonsContainer: HTMLElement | null = null;
-	private customButtons: Map<string, { buttonEl: HTMLElement; config: CustomNavButton }> = new Map();
+	private customButtons: Map<
+		string,
+		{ buttonEl: HTMLElement; config: CustomNavButton }
+	> = new Map();
+	private cycleSelectorContainer: HTMLElement | null = null;
+	private selectedCycleId: string | null = null;
+	private onCycleChange: ((cycleId: string | null) => void) | null = null;
 
 	constructor(
 		containerEl: HTMLElement,
@@ -59,7 +65,7 @@ export class TopNavigation extends Component {
 		private onSortClick: () => void,
 		private onSettingsClick: () => void,
 		availableModes?: ViewMode[],
-		private onToggleSidebar?: () => void
+		private onToggleSidebar?: () => void,
 	) {
 		super();
 		this.containerEl = containerEl;
@@ -87,14 +93,14 @@ export class TopNavigation extends Component {
 		this.registerEvent(
 			on(this.plugin.app, Events.CACHE_READY, () => {
 				this.updateNotificationCount();
-			})
+			}),
 		);
 
 		// Listen for task cache updates
 		this.registerEvent(
 			on(this.plugin.app, Events.TASK_CACHE_UPDATED, () => {
 				this.updateNotificationCount();
-			})
+			}),
 		);
 	}
 
@@ -151,14 +157,14 @@ export class TopNavigation extends Component {
 			today.setHours(0, 0, 0, 0);
 
 			this.notificationCount = tasks.filter((task: Task) =>
-				this.isOverdueTask(task, today)
+				this.isOverdueTask(task, today),
 			).length;
 
 			this.updateNotificationBadge();
 		} catch (error) {
 			console.warn(
 				"[FluentTopNavigation] Failed to update notification count:",
-				error
+				error,
 			);
 		}
 	}
@@ -170,8 +176,11 @@ export class TopNavigation extends Component {
 		// Hide entire navigation if no view modes are available
 		if (this.availableModes.length === 0) {
 			this.containerEl.hide();
+			this.containerEl.toggleClass("other-view", true);
 			return;
 		}
+
+		this.containerEl.toggleClass("other-view", false);
 
 		// Show navigation when modes are available
 		this.containerEl.show();
@@ -212,6 +221,12 @@ export class TopNavigation extends Component {
 			cls: "fluent-nav-custom-buttons",
 		});
 
+		// Cycle selector container (hidden by default)
+		this.cycleSelectorContainer = rightSection.createDiv({
+			cls: "fluent-nav-cycle-selector-wrapper",
+		});
+		this.cycleSelectorContainer.hide();
+
 		// Notification button
 		const notificationBtn = rightSection.createDiv({
 			cls: "fluent-nav-icon-button",
@@ -227,7 +242,7 @@ export class TopNavigation extends Component {
 			badge.show();
 		}
 		this.registerDomEvent(notificationBtn, "click", (e) =>
-			this.showNotifications(e)
+			this.showNotifications(e),
 		);
 
 		// Settings button
@@ -236,7 +251,7 @@ export class TopNavigation extends Component {
 		});
 		setIcon(settingsBtn, "settings");
 		this.registerDomEvent(settingsBtn, "click", () =>
-			this.onSettingsClick()
+			this.onSettingsClick(),
 		);
 	}
 
@@ -244,7 +259,7 @@ export class TopNavigation extends Component {
 		container: HTMLElement,
 		mode: ViewMode,
 		icon: string,
-		label: string
+		label: string,
 	) {
 		const tab = container.createEl("button", {
 			cls: ["fluent-view-tab", "clickable-icon"],
@@ -275,7 +290,7 @@ export class TopNavigation extends Component {
 		});
 
 		const activeTab = this.containerEl.querySelector(
-			`[data-mode="${mode}"]`
+			`[data-mode="${mode}"]`,
 		);
 		if (activeTab) {
 			activeTab.addClass("is-active");
@@ -296,7 +311,7 @@ export class TopNavigation extends Component {
 		today.setHours(0, 0, 0, 0);
 
 		const overdueTasks = tasks.filter((task: Task) =>
-			this.isOverdueTask(task, today)
+			this.isOverdueTask(task, today),
 		);
 
 		if (overdueTasks.length === 0) {
@@ -306,7 +321,7 @@ export class TopNavigation extends Component {
 		} else {
 			menu.addItem((item) => {
 				item.setTitle(
-					`${overdueTasks.length} overdue tasks`
+					`${overdueTasks.length} overdue tasks`,
 				).setDisabled(true);
 			});
 
@@ -340,7 +355,7 @@ export class TopNavigation extends Component {
 
 	private updateNotificationBadge() {
 		const badge = this.containerEl.querySelector(
-			".fluent-notification-badge"
+			".fluent-notification-badge",
 		);
 		if (badge instanceof HTMLElement) {
 			badge.textContent = String(this.notificationCount);
@@ -386,7 +401,7 @@ export class TopNavigation extends Component {
 					this.viewTabsContainer,
 					mode,
 					config.icon,
-					config.label
+					config.label,
 				);
 			}
 		}
@@ -399,8 +414,11 @@ export class TopNavigation extends Component {
 		// Hide entire navigation if no modes available
 		if (modes.length === 0) {
 			this.containerEl.hide();
+			this.containerEl.toggleClass("other-view", true);
 			return;
 		}
+
+		this.containerEl.toggleClass("other-view", false);
 
 		// If transitioning from empty to non-empty, need to re-render entire UI
 		if (wasEmpty && modes.length > 0) {
@@ -420,7 +438,7 @@ export class TopNavigation extends Component {
 
 		// Update center section visibility (this should always be visible now since we handle empty modes above)
 		const centerSection = this.containerEl.querySelector(
-			".fluent-nav-center"
+			".fluent-nav-center",
 		) as HTMLElement;
 		if (centerSection) {
 			centerSection.show();
@@ -443,13 +461,17 @@ export class TopNavigation extends Component {
 	 */
 	public registerCustomButton(config: CustomNavButton): void {
 		if (!this.customButtonsContainer) {
-			console.warn("[FluentTopNavigation] Custom buttons container not initialized");
+			console.warn(
+				"[FluentTopNavigation] Custom buttons container not initialized",
+			);
 			return;
 		}
 
 		// Check if button already exists
 		if (this.customButtons.has(config.id)) {
-			console.warn(`[FluentTopNavigation] Button with id "${config.id}" already registered`);
+			console.warn(
+				`[FluentTopNavigation] Button with id "${config.id}" already registered`,
+			);
 			return;
 		}
 
@@ -470,7 +492,9 @@ export class TopNavigation extends Component {
 			config: config,
 		});
 
-		console.log(`[FluentTopNavigation] Registered custom button: ${config.id}`);
+		console.log(
+			`[FluentTopNavigation] Registered custom button: ${config.id}`,
+		);
 	}
 
 	/**
@@ -508,5 +532,166 @@ export class TopNavigation extends Component {
 		this.customButtons.clear();
 
 		console.log("[FluentTopNavigation] Cleared all custom buttons");
+	}
+
+	/**
+	 * Set the callback to be called when cycle selection changes
+	 */
+	public setCycleChangeCallback(
+		callback: (cycleId: string | null) => void,
+	): void {
+		this.onCycleChange = callback;
+	}
+
+	/**
+	 * Show the cycle selector in the navigation bar
+	 * @param selectedCycleId - Currently selected cycle ID (null for "All Cycles")
+	 */
+	public showCycleSelector(selectedCycleId: string | null = null): void {
+		if (!this.cycleSelectorContainer) {
+			console.warn(
+				"[FluentTopNavigation] Cycle selector container not initialized",
+			);
+			return;
+		}
+
+		this.selectedCycleId = selectedCycleId;
+		this.renderCycleSelector();
+		this.cycleSelectorContainer.show();
+	}
+
+	/**
+	 * Hide the cycle selector from the navigation bar
+	 */
+	public hideCycleSelector(): void {
+		if (this.cycleSelectorContainer) {
+			this.cycleSelectorContainer.hide();
+			this.cycleSelectorContainer.empty();
+		}
+	}
+
+	/**
+	 * Update the selected cycle ID and refresh the UI
+	 */
+	public setSelectedCycleId(cycleId: string | null): void {
+		this.selectedCycleId = cycleId;
+		if (
+			this.cycleSelectorContainer &&
+			this.cycleSelectorContainer.isShown()
+		) {
+			this.renderCycleSelector();
+		}
+	}
+
+	/**
+	 * Get the currently selected cycle ID
+	 */
+	public getSelectedCycleId(): string | null {
+		return this.selectedCycleId;
+	}
+
+	/**
+	 * Render the cycle selector dropdown button
+	 */
+	private renderCycleSelector(): void {
+		if (!this.cycleSelectorContainer) {
+			return;
+		}
+
+		this.cycleSelectorContainer.empty();
+
+		// Create cycle selector button
+		const cycleButton = this.cycleSelectorContainer.createEl("button", {
+			cls: "fluent-nav-cycle-button clickable-icon",
+			attr: {
+				"aria-label": t("kanban.cycleSelector"),
+			},
+		});
+
+		// Add icon
+		const iconDiv = cycleButton.createDiv({ cls: "fluent-nav-cycle-icon" });
+		setIcon(iconDiv, "layers");
+
+		// Add label
+		const labelSpan = cycleButton.createSpan({
+			cls: "fluent-nav-cycle-label",
+		});
+
+		// Set label based on selected cycle
+		if (this.selectedCycleId) {
+			const selectedCycle = (
+				this.plugin.settings.statusCycles || []
+			).find((c) => c.id === this.selectedCycleId);
+			labelSpan.textContent =
+				selectedCycle?.name || t("kanban.allCycles");
+		} else {
+			labelSpan.textContent = t("kanban.allCycles");
+		}
+
+		// Register click event to show menu
+		this.registerDomEvent(cycleButton, "click", (event: MouseEvent) => {
+			this.showCycleMenu(event);
+		});
+	}
+
+	/**
+	 * Show the cycle selection menu
+	 */
+	private showCycleMenu(event: MouseEvent): void {
+		const menu = new Menu();
+
+		// "All Cycles" option
+		menu.addItem((item) => {
+			item.setTitle(t("kanban.allCycles"))
+				.setChecked(this.selectedCycleId === null)
+				.onClick(() => {
+					this.selectedCycleId = null;
+					this.renderCycleSelector();
+					if (this.onCycleChange) {
+						this.onCycleChange(null);
+					}
+				});
+		});
+
+		menu.addSeparator();
+
+		// Get enabled cycles, sorted by priority
+		const enabledCycles = (this.plugin.settings.statusCycles || [])
+			.filter((c) => c.enabled)
+			.sort((a, b) => a.priority - b.priority);
+
+		if (enabledCycles.length === 0) {
+			menu.addItem((item) => {
+				item.setTitle(t("kanban.noCyclesAvailable")).setDisabled(true);
+			});
+		} else {
+			for (const cycle of enabledCycles) {
+				menu.addItem((item) => {
+					item.setTitle(cycle.name)
+						.setChecked(this.selectedCycleId === cycle.id)
+						.onClick(() => {
+							this.selectedCycleId = cycle.id;
+							this.renderCycleSelector();
+							if (this.onCycleChange) {
+								this.onCycleChange(cycle.id);
+							}
+						});
+				});
+			}
+		}
+
+		menu.addSeparator();
+
+		menu.addItem((i) => {
+			i.setTitle(t("Open status cycle settings"));
+			i.onClick(() => {
+				this.plugin.app.setting.open();
+				this.plugin.app.setting.openTabById(this.plugin.manifest.id);
+
+				this.plugin.settingTab.openTab("task-status");
+			});
+		});
+
+		menu.showAtMouseEvent(event);
 	}
 }

@@ -71,6 +71,8 @@ export class KanbanComponent extends Component {
 	};
 	private hideEmptyColumns = false;
 	private configOverride: Partial<KanbanSpecificConfig> | null = null; // Configuration override from Bases view
+	private selectedCycleId: string | null = null; // Currently selected cycle ID for filtering
+	private readonly CYCLE_STORAGE_KEY_PREFIX = "kanban-cycle-"; // localStorage key prefix for cycle selection
 
 	constructor(
 		app: App,
@@ -136,6 +138,7 @@ export class KanbanComponent extends Component {
 
 		// Load configuration settings
 		this.loadKanbanConfig();
+		this.loadCycleSelection();
 
 		this.filterContainerEl = this.containerEl.createDiv({
 			cls: "tg-kanban-filters",
@@ -273,6 +276,78 @@ export class KanbanComponent extends Component {
 						});
 				});
 			});
+
+			menu.showAtMouseEvent(event);
+		});
+
+		// Cycle selector (only for status grouping)
+		this.renderCycleSelector(controlsContainer);
+	}
+
+	private renderCycleSelector(container: HTMLElement): void {
+		// Only show cycle selector in status grouping mode
+		const kanbanConfig = this.getEffectiveKanbanConfig();
+		if (kanbanConfig?.groupBy !== "status") {
+			return;
+		}
+
+		const cycleContainer = container.createDiv({
+			cls: "tg-kanban-cycle-container",
+		});
+
+		const cycleButton = cycleContainer.createEl(
+			"button",
+			{
+				cls: "tg-kanban-cycle-button clickable-icon",
+				attr: {
+					"aria-label": t("kanban.cycleSelector"),
+				},
+			},
+			(el) => {
+				setIcon(el, "layers");
+			},
+		);
+
+		this.registerDomEvent(cycleButton, "click", (event: MouseEvent) => {
+			const menu = new Menu();
+
+			// "All Cycles" option
+			menu.addItem((item) => {
+				item.setTitle(t("kanban.allCycles"))
+					.setChecked(this.selectedCycleId === null)
+					.onClick(() => {
+						this.selectedCycleId = null;
+						this.saveCycleSelection();
+						this.renderColumns();
+					});
+			});
+
+			menu.addSeparator();
+
+			// Get enabled cycles, sorted by priority
+			const enabledCycles = (this.plugin.settings.statusCycles || [])
+				.filter((c) => c.enabled)
+				.sort((a, b) => a.priority - b.priority);
+
+			if (enabledCycles.length === 0) {
+				menu.addItem((item) => {
+					item.setTitle(t("kanban.noCyclesAvailable")).setDisabled(
+						true,
+					);
+				});
+			} else {
+				for (const cycle of enabledCycles) {
+					menu.addItem((item) => {
+						item.setTitle(cycle.name)
+							.setChecked(this.selectedCycleId === cycle.id)
+							.onClick(() => {
+								this.selectedCycleId = cycle.id;
+								this.saveCycleSelection();
+								this.renderColumns();
+							});
+					});
+				}
+			}
 
 			menu.showAtMouseEvent(event);
 		});
@@ -555,12 +630,42 @@ export class KanbanComponent extends Component {
 	}
 
 	private renderStatusColumns() {
-		const { cycle: statusCycle, excludeMarksFromCycle } =
-			getTaskStatusConfig(this.plugin.settings);
-		let statusNames =
-			statusCycle.length > 0
-				? statusCycle
-				: ["Todo", "In Progress", "Done"];
+		// Determine which statuses to render based on cycle selection
+		let statusNames: string[];
+		let excludeMarksFromCycle: string[] = [];
+
+		if (this.selectedCycleId) {
+			// Find the selected cycle
+			const selectedCycle = (
+				this.plugin.settings.statusCycles || []
+			).find((c) => c.id === this.selectedCycleId && c.enabled);
+
+			if (selectedCycle) {
+				// Use only the statuses from the selected cycle
+				statusNames = [...selectedCycle.cycle];
+			} else {
+				// Cycle no longer exists or is disabled, reset to all
+				console.warn(
+					`[Kanban] Selected cycle ${this.selectedCycleId} not found, resetting`,
+				);
+				this.selectedCycleId = null;
+				this.saveCycleSelection();
+				const config = getTaskStatusConfig(this.plugin.settings);
+				statusNames =
+					config.cycle.length > 0
+						? config.cycle
+						: ["Todo", "In Progress", "Done"];
+				excludeMarksFromCycle = config.excludeMarksFromCycle || [];
+			}
+		} else {
+			// Show all cycles (existing behavior)
+			const config = getTaskStatusConfig(this.plugin.settings);
+			statusNames =
+				config.cycle.length > 0
+					? config.cycle
+					: ["Todo", "In Progress", "Done"];
+			excludeMarksFromCycle = config.excludeMarksFromCycle || [];
+		}
 
 		const spaceStatus: string[] = [];
 		const xStatus: string[] = [];
@@ -614,6 +719,50 @@ export class KanbanComponent extends Component {
 			this.addChild(column);
 			this.columns.push(column);
 		});
+
+		// Render "Other" column for unmatched tasks (only when a cycle is selected)
+		if (this.selectedCycleId) {
+			const unmatchedTasks = this.getUnmatchedTasks();
+			if (unmatchedTasks.length > 0) {
+				const otherColumn = new KanbanColumnComponent(
+					this.app,
+					this.plugin,
+					this.columnContainerEl,
+					t("kanban.otherColumn"),
+					unmatchedTasks,
+					{
+						...this.params,
+						onTaskStatusUpdate: (
+							taskId: string,
+							newStatusMark: string,
+						) => this.handleStatusUpdate(taskId, newStatusMark),
+						onFilterApply: this.handleFilterApply,
+					},
+				);
+				this.addChild(otherColumn);
+				this.columns.push(otherColumn);
+			}
+		}
+	}
+
+	private getUnmatchedTasks(): Task[] {
+		if (!this.selectedCycleId) {
+			return [];
+		}
+
+		const selectedCycle = (this.plugin.settings.statusCycles || []).find(
+			(c) => c.id === this.selectedCycleId,
+		);
+
+		if (!selectedCycle) {
+			return [];
+		}
+
+		// Collect all marks from the selected cycle
+		const cycleMarks = new Set(Object.values(selectedCycle.marks));
+
+		// Return tasks whose status is not in the cycle
+		return this.tasks.filter((task) => !cycleMarks.has(task.status || " "));
 	}
 
 	private renderCustomColumns(
@@ -809,14 +958,31 @@ export class KanbanComponent extends Component {
 	}
 
 	private getTasksForStatus(statusName: string): Task[] {
-		// Prefer multi-mark mapping from settings.taskStatuses when available
-		const allowed = this.getAllowedMarksForStatusName(statusName);
-		const statusMark = this.resolveStatusMark(statusName) ?? " ";
+		let allowedMarks: Set<string>;
+
+		if (this.selectedCycleId) {
+			// Use the selected cycle's marks mapping
+			const selectedCycle = (
+				this.plugin.settings.statusCycles || []
+			).find((c) => c.id === this.selectedCycleId);
+
+			if (selectedCycle) {
+				const mark = selectedCycle.marks[statusName];
+				allowedMarks = mark ? new Set([mark]) : new Set();
+			} else {
+				allowedMarks = new Set();
+			}
+		} else {
+			// Use multi-cycle logic (existing behavior)
+			const allowed = this.getAllowedMarksForStatusName(statusName);
+			const statusMark = this.resolveStatusMark(statusName) ?? " ";
+			allowedMarks = allowed || new Set([statusMark]);
+		}
 
 		// Filter from the already filtered list
 		const tasksForStatus = this.tasks.filter((task) => {
 			const mark = task.status || " ";
-			return allowed ? allowed.has(mark) : mark === statusMark;
+			return allowedMarks.has(mark);
 		});
 
 		// Sort tasks within the status column based on selected sort option
@@ -943,18 +1109,21 @@ export class KanbanComponent extends Component {
 					this.getEffectiveKanbanConfig()?.groupBy || groupByPlugin;
 
 				if (groupBy === "status") {
-					// Handle status-based grouping (original logic)
-					const targetStatusMark = this.resolveStatusMark(
+					// Handle status-based grouping
+					const targetStatusMark = this.getStatusMarkForColumn(
 						(targetColumnTitle || "").trim(),
 					);
-					if (targetStatusMark !== undefined) {
+					if (
+						targetStatusMark !== undefined &&
+						targetStatusMark !== null
+					) {
 						console.log(
 							`Kanban requesting status update for task ${taskId} to status ${targetColumnTitle} (mark: ${targetStatusMark})`,
 						);
 						await this.handleStatusUpdate(taskId, targetStatusMark);
 					} else {
 						console.warn(
-							`Could not find status mark for status name: ${targetColumnTitle}`,
+							`Could not find status mark for status name: ${targetColumnTitle} or drag to Other column is not allowed`,
 						);
 					}
 				} else {
@@ -1017,6 +1186,36 @@ export class KanbanComponent extends Component {
 		this.loadColumnOrder();
 	}
 
+	private getCycleStorageKey(): string {
+		return `${this.CYCLE_STORAGE_KEY_PREFIX}${this.currentViewId}`;
+	}
+
+	private loadCycleSelection(): void {
+		const key = this.getCycleStorageKey();
+		const saved = localStorage.getItem(key);
+		if (saved) {
+			// Verify that the cycle still exists and is enabled
+			const cycles = this.plugin.settings.statusCycles || [];
+			const cycleExists = cycles.some((c) => c.id === saved && c.enabled);
+			this.selectedCycleId = cycleExists ? saved : null;
+			if (!cycleExists && saved) {
+				console.log(
+					`[Kanban] Saved cycle ${saved} no longer exists or is disabled, resetting to null`,
+				);
+				localStorage.removeItem(key);
+			}
+		}
+	}
+
+	private saveCycleSelection(): void {
+		const key = this.getCycleStorageKey();
+		if (this.selectedCycleId) {
+			localStorage.setItem(key, this.selectedCycleId);
+		} else {
+			localStorage.removeItem(key);
+		}
+	}
+
 	private getSortOptionLabel(field: string, order: string): string {
 		const fieldLabels: Record<string, string> = {
 			priority: t("Priority"),
@@ -1034,6 +1233,36 @@ export class KanbanComponent extends Component {
 	 * Accepts either configured status names (e.g., "Abandoned")
 	 * or raw marks (e.g., "-", "x", "/").
 	 */
+	/**
+	 * Get status mark for a column title, respecting cycle selection.
+	 * Returns null if dragging to "Other" column (not allowed).
+	 */
+	private getStatusMarkForColumn(
+		columnTitle: string,
+	): string | null | undefined {
+		if (!columnTitle) return undefined;
+
+		// Check if this is the "Other" column
+		if (columnTitle === t("kanban.otherColumn")) {
+			// Dragging to "Other" column is not allowed
+			return null;
+		}
+
+		if (this.selectedCycleId) {
+			// Use selected cycle's marks mapping
+			const selectedCycle = (
+				this.plugin.settings.statusCycles || []
+			).find((c) => c.id === this.selectedCycleId);
+
+			if (selectedCycle) {
+				return selectedCycle.marks[columnTitle] || undefined;
+			}
+		}
+
+		// Fallback to existing logic for multi-cycle or no cycle selected
+		return this.resolveStatusMark(columnTitle);
+	}
+
 	private resolveStatusMark(titleOrMark: string): string | undefined {
 		if (!titleOrMark) return undefined;
 		const trimmed = titleOrMark.trim();

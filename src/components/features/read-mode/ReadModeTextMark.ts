@@ -199,6 +199,7 @@ class TaskTextMark extends Component {
 		// Get cycle configuration from plugin settings
 		const { cycle, marks, excludeMarksFromCycle } = getTaskStatusConfig(
 			this.plugin.settings,
+			this.currentMark,
 		);
 
 		// Filter out excluded marks

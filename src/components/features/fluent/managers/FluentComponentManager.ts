@@ -438,6 +438,11 @@ export class FluentComponentManager extends Component {
 			this.listContainer?.hide();
 			this.treeContainer?.hide();
 		}
+
+		// Hide cycle selector when hiding all components
+		if (this.topNavigation) {
+			this.topNavigation.hideCycleSelector();
+		}
 	}
 
 	/**
@@ -619,8 +624,13 @@ export class FluentComponentManager extends Component {
 			this.currentVisibleComponent = targetComponent;
 
 			// Set TopNavigation reference for ContentComponent to enable custom buttons
-			if (targetComponent === this.contentComponent && this.topNavigation) {
-				console.log("[FluentComponent] Setting TopNavigation reference for ContentComponent");
+			if (
+				targetComponent === this.contentComponent &&
+				this.topNavigation
+			) {
+				console.log(
+					"[FluentComponent] Setting TopNavigation reference for ContentComponent",
+				);
 				this.contentComponent.setTopNavigation(this.topNavigation);
 			}
 
@@ -724,6 +734,8 @@ export class FluentComponentManager extends Component {
 		// Clear custom buttons before switching view modes
 		if (this.topNavigation) {
 			this.topNavigation.clearCustomButtons();
+			// Hide cycle selector when switching away from kanban
+			this.topNavigation.hideCycleSelector();
 		}
 
 		// Based on the current view mode, show the appropriate component
@@ -756,6 +768,31 @@ export class FluentComponentManager extends Component {
 				if (!this.kanbanComponent) return;
 
 				this.kanbanComponent.containerEl.show();
+
+				// Show cycle selector in TopNavigation for kanban view
+				if (this.topNavigation) {
+					// Load saved cycle selection from kanban component
+					const savedCycleId =
+						this.kanbanComponent["selectedCycleId"] || null;
+
+					// Set cycle change callback
+					this.topNavigation.setCycleChangeCallback(
+						(cycleId: string | null) => {
+							console.log(
+								"[FluentComponent] Cycle changed to:",
+								cycleId,
+							);
+							// Update kanban component's selected cycle
+							this.kanbanComponent["selectedCycleId"] = cycleId;
+							this.kanbanComponent["saveCycleSelection"]();
+							// Re-render columns with new cycle
+							this.kanbanComponent["renderColumns"]();
+						},
+					);
+
+					// Show cycle selector with current selection
+					this.topNavigation.showCycleSelector(savedCycleId);
+				}
 
 				console.log(
 					"[FluentComponent] Setting",
@@ -888,7 +925,10 @@ export class FluentComponentManager extends Component {
 	/**
 	 * Render error state with detailed context
 	 */
-	renderErrorState(context: ErrorContext | string, onRetry: () => void): void {
+	renderErrorState(
+		context: ErrorContext | string,
+		onRetry: () => void,
+	): void {
 		if (!this.contentArea) return;
 
 		// Parse context: support both new (ErrorContext) and old (string) formats
@@ -952,7 +992,7 @@ export class FluentComponentManager extends Component {
 	 */
 	private createErrorContext(
 		errorEl: HTMLElement,
-		errorContext: ErrorContext
+		errorContext: ErrorContext,
 	): void {
 		if (
 			!errorContext.viewId &&
@@ -994,7 +1034,7 @@ export class FluentComponentManager extends Component {
 	 */
 	private createErrorMessage(
 		errorEl: HTMLElement,
-		errorContext: ErrorContext
+		errorContext: ErrorContext,
 	): void {
 		const userMessage =
 			errorContext.userMessage ||
@@ -1012,7 +1052,7 @@ export class FluentComponentManager extends Component {
 	 */
 	private createTechnicalDetails(
 		errorEl: HTMLElement,
-		errorContext: ErrorContext
+		errorContext: ErrorContext,
 	): void {
 		if (!errorContext.originalError) return;
 
@@ -1045,10 +1085,7 @@ export class FluentComponentManager extends Component {
 	/**
 	 * Create retry button
 	 */
-	private createRetryButton(
-		errorEl: HTMLElement,
-		onRetry: () => void
-	): void {
+	private createRetryButton(errorEl: HTMLElement, onRetry: () => void): void {
 		const retryBtn = errorEl.createEl("button", {
 			cls: "tg-fluent-button tg-fluent-button-primary",
 			text: t("Retry"),

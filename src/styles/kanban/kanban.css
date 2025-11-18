@@ -48,6 +48,38 @@
 	border-color: var(--background-modifier-border-hover);
 }
 
+/* Cycle selector styles */
+.tg-kanban-cycle-container {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.tg-kanban-cycle-button {
+	padding: 4px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: var(--font-ui-small);
+	transition:
+		background-color 0.2s ease,
+		border-color 0.2s ease;
+}
+
+.tg-kanban-cycle-button:hover {
+	background-color: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border-hover);
+}
+
+.tg-kanban-cycle-button:active {
+	background-color: var(--background-modifier-active-hover);
+}
+
 .tg-kanban-toggle-container {
 	display: flex;
 	align-items: center;
@@ -115,7 +147,7 @@
 	background-color: var(--background-secondary);
 	border-radius: var(--radius-m);
 	height: 100%; /* Fill container height */
-	max-height: 100%; /* Prevent exceeding container */
+	max-height: calc(100vh - 170px); /* Prevent exceeding container */
 	overflow: hidden; /* Hide overflow within the column */
 
 	border: 1px solid var(--background-modifier-border);
@@ -175,7 +207,9 @@
 	border: 1px solid var(--background-modifier-border);
 	font-size: var(--font-ui-small);
 	cursor: grab;
-	transition: box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out;
+	transition:
+		box-shadow 0.2s ease-in-out,
+		background-color 0.2s ease-in-out;
 
 	/* Ensure card fits within column and handles content */
 	max-width: 100%; /* Prevent card from exceeding parent width */
@@ -313,14 +347,18 @@
 	margin-top: 10px; /* Increased margin */
 	border-top: 2px dashed var(--interactive-accent); /* Indicator */
 	/* padding-top: 20px; */ /* Removed padding */
-	transition: margin-top 0.1s ease-out, border-top 0.1s ease-out; /* Updated transition */
+	transition:
+		margin-top 0.1s ease-out,
+		border-top 0.1s ease-out; /* Updated transition */
 }
 
 .tg-kanban-card--drop-indicator-after {
 	margin-bottom: 10px; /* Increased margin */
 	border-bottom: 2px dashed var(--interactive-accent); /* Indicator */
 	/* padding-bottom: 20px; */ /* Removed padding */
-	transition: margin-bottom 0.1s ease-out, border-bottom 0.1s ease-out; /* Updated transition */
+	transition:
+		margin-bottom 0.1s ease-out,
+		border-bottom 0.1s ease-out; /* Updated transition */
 }
 
 /* Optional: Style for dropping into an empty column */
@@ -335,9 +373,13 @@
 /* Ensure transitions are smooth when classes are removed */
 .tg-kanban-card {
 	/* Ensure existing transitions don't conflict, or add base transition */
-	transition: margin 0.1s ease-out, padding 0.1s ease-out,
-		border 0.1s ease-out, transform 0.2s ease-out,
-		box-shadow 0.2s ease-in-out, background-color 0.2s ease-in-out; /* Merged transitions */
+	transition:
+		margin 0.1s ease-out,
+		padding 0.1s ease-out,
+		border 0.1s ease-out,
+		transform 0.2s ease-out,
+		box-shadow 0.2s ease-in-out,
+		background-color 0.2s ease-in-out; /* Merged transitions */
 }
 
 .drop-target-active {
@@ -373,7 +415,9 @@
 	cursor: pointer;
 	font-size: var(--font-ui-small);
 	text-align: left;
-	transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+	transition:
+		background-color 0.2s ease-in-out,
+		color 0.2s ease-in-out;
 }
 
 .tg-kanban-add-card-button:hover {

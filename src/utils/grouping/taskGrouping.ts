@@ -680,7 +680,8 @@ export function groupTasksByStatus(
 	const groupMap = new Map<string, Task[]>();
 
 	tasks.forEach((task) => {
-		const status = task.status || "TODO";
+		// task.status is the mark character (e.g., "x", " ", "r", "-")
+		const status = task.status || " ";
 
 		if (!groupMap.has(status)) {
 			groupMap.set(status, []);
@@ -688,14 +689,47 @@ export function groupTasksByStatus(
 		groupMap.get(status)!.push(task);
 	});
 
-	// Define status order
-	const statusOrder = ["TODO", "IN_PROGRESS", "WAITING", "DONE", "CANCELLED"];
+	// Build mark order from user's cycle configuration
+	// This ensures marks are sorted according to user's defined cycles
+	const markOrder: string[] = [];
+
+	if (settings?.statusCycles && settings.statusCycles.length > 0) {
+		// Get marks from all enabled cycles, ordered by priority
+		const enabledCycles = settings.statusCycles
+			.filter((c) => c.enabled)
+			.sort((a, b) => a.priority - b.priority);
+
+		for (const cycle of enabledCycles) {
+			for (const statusName of cycle.cycle) {
+				const mark = cycle.marks[statusName];
+				if (mark && !markOrder.includes(mark)) {
+					markOrder.push(mark);
+				}
+			}
+		}
+	} else if (settings?.taskStatusCycle && settings?.taskStatusMarks) {
+		// Legacy single-cycle mode
+		for (const statusName of settings.taskStatusCycle) {
+			const mark = settings.taskStatusMarks[statusName];
+			if (mark && !markOrder.includes(mark)) {
+				markOrder.push(mark);
+			}
+		}
+	}
+
+	// Fallback order for common marks not in user config
+	const fallbackOrder = [" ", "/", ">", "x", "X", "-", "?", "!"];
+	for (const mark of fallbackOrder) {
+		if (!markOrder.includes(mark)) {
+			markOrder.push(mark);
+		}
+	}
 
 	// Convert to TaskGroup array and sort by defined order
 	const groups: TaskGroup[] = [];
 	const sortedKeys = Array.from(groupMap.keys()).sort((a, b) => {
-		const indexA = statusOrder.indexOf(a);
-		const indexB = statusOrder.indexOf(b);
+		const indexA = markOrder.indexOf(a);
+		const indexB = markOrder.indexOf(b);
 
 		// If both are in the order array, sort by index
 		if (indexA !== -1 && indexB !== -1) {

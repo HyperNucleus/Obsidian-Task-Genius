@@ -533,6 +533,54 @@ button.fluent-new-task-btn:hover {
 	align-items: center;
 }
 
+/* Cycle selector styles */
+.fluent-nav-cycle-selector-wrapper {
+	display: flex;
+	align-items: center;
+	margin-right: 8px;
+}
+
+.fluent-nav-cycle-button {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+	font-size: var(--font-ui-small);
+	transition:
+		background-color 0.2s ease,
+		border-color 0.2s ease;
+	white-space: nowrap;
+}
+
+.fluent-nav-cycle-button:hover {
+	background-color: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border-hover);
+}
+
+.fluent-nav-cycle-button:active {
+	background-color: var(--background-modifier-active-hover);
+}
+
+.fluent-nav-cycle-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+}
+
+.fluent-nav-cycle-label {
+	font-weight: 500;
+	max-width: 120px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 .fluent-nav-icon-button {
 	position: relative;
 	width: 36px;
@@ -573,7 +621,9 @@ button.fluent-new-task-btn:hover {
 
 .bases-view .tg-kanban-filters,
 .tg-fluent-content .content-header,
-.tg-fluent-content .tg-kanban-filters {
+.tg-fluent-main-container:has(.fluent-top-navigation:not(.other-view))
+	.tg-fluent-content
+	.tg-kanban-filters {
 	display: none;
 }
 
@@ -637,7 +687,10 @@ button.fluent-new-task-btn:hover {
 
 /* ===== Collapsed Sidebar (Rail) ===== */
 .tg-fluent-sidebar-container {
-	transition: width 0.2s ease, min-width 0.2s ease, max-width 0.2s ease;
+	transition:
+		width 0.2s ease,
+		min-width 0.2s ease,
+		max-width 0.2s ease;
 }
 
 /* When the sidebar element itself is collapsed */
@@ -668,7 +721,9 @@ button.fluent-new-task-btn:hover {
 	border-radius: var(--radius-s);
 	color: var(--text-muted);
 	cursor: pointer;
-	transition: background-color 0.15s ease, color 0.15s ease;
+	transition:
+		background-color 0.15s ease,
+		color 0.15s ease;
 }
 
 .fluent-rail-btn:hover {
@@ -832,7 +887,9 @@ button.fluent-new-task-btn:hover {
 	border-radius: 4px;
 	color: var(--text-muted);
 	cursor: pointer;
-	transition: background-color 0.15s ease, color 0.15s ease;
+	transition:
+		background-color 0.15s ease,
+		color 0.15s ease;
 	margin-right: 8px;
 	flex-shrink: 0;
 }

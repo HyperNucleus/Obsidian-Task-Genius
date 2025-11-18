@@ -28,6 +28,8 @@ import {
 	getTaskStatusConfig,
 } from "@/utils/status-cycle-resolver";
 
+import { t } from "@/translations/helper";
+
 export type TaskState = string;
 export const taskStatusChangeAnnotation = Annotation.define();
 
@@ -51,6 +53,7 @@ class TaskStatusWidget extends WidgetType {
 		readonly from: number,
 		readonly to: number,
 		readonly currentState: TaskState,
+		readonly currentMark: string,
 		readonly listPrefix: string,
 	) {
 		super();
@@ -193,7 +196,7 @@ class TaskStatusWidget extends WidgetType {
 				if (applicableCycles.length > 0) {
 					// Show each applicable cycle with its next status
 					menu.addItem((item) => {
-						item.setTitle("Switch using cycle:");
+						item.setTitle(t("Cycle to next:"));
 						item.setDisabled(true);
 					});
 
@@ -205,16 +208,16 @@ class TaskStatusWidget extends WidgetType {
 
 						if (nextStatusResult) {
 							menu.addItem((item) => {
-								const priorityIndicator =
-									cycle.priority === 0 ? "★ " : "";
+								const priorityIndicator = cycle.priority === 0;
 								item.setTitle(
-									`${priorityIndicator}${cycle.name}: → ${nextStatusResult.statusName}`,
+									`${cycle.name}: ${nextStatusResult.statusName}`,
 								);
 								item.onClick(() => {
 									this.setTaskState(
 										nextStatusResult.statusName,
 									);
 								});
+								item.setChecked(priorityIndicator);
 							});
 						}
 					}
@@ -223,7 +226,7 @@ class TaskStatusWidget extends WidgetType {
 
 					// Add "Choose any status" section
 					menu.addItem((item) => {
-						item.setTitle("Choose any status:");
+						item.setTitle(t("Or choose any:"));
 						item.setDisabled(true);
 					});
 
@@ -234,11 +237,9 @@ class TaskStatusWidget extends WidgetType {
 					for (const statusName of Array.from(allStatusNames)) {
 						menu.addItem((item) => {
 							const isCurrent = statusName === this.currentState;
-							item.setTitle(
-								isCurrent
-									? `${statusName} (current)`
-									: statusName,
-							);
+							item.setTitle(statusName);
+							item.setDisabled(isCurrent);
+							item.setChecked(isCurrent);
 							item.onClick(() => {
 								this.setTaskState(statusName);
 							});
@@ -346,7 +347,7 @@ class TaskStatusWidget extends WidgetType {
 			};
 		}
 
-		return getTaskStatusConfig(this.plugin.settings);
+		return getTaskStatusConfig(this.plugin.settings, this.currentMark);
 	}
 
 	// Cycle through task states
@@ -440,7 +441,7 @@ export function taskStatusSwitcherExtension(
 				const checkbox = checkboxWithSpace.trim();
 				const isLivePreview = this.isLivePreview(view.state);
 				const { cycle, marks, excludeMarksFromCycle } =
-					getTaskStatusConfig(plugin.settings);
+					getTaskStatusConfig(plugin.settings, mark);
 				const remainingCycle = cycle.filter(
 					(state) => !excludeMarksFromCycle.includes(state),
 				);
@@ -476,6 +477,7 @@ export function taskStatusSwitcherExtension(
 								checkboxStart,
 								checkboxEnd,
 								currentState,
+								mark,
 								bulletText,
 							),
 						}),
@@ -499,6 +501,7 @@ export function taskStatusSwitcherExtension(
 									bulletWithSpace.length +
 									checkbox.length,
 								currentState,
+								mark,
 								bulletText,
 							),
 						}),
