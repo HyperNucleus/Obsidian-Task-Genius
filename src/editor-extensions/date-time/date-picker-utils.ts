@@ -63,7 +63,7 @@ export function isInsideTaskLine(state: EditorState, pos: number): boolean {
 
 		// Use syntax tree for more precise detection
 		const tree = syntaxTree(state);
-		let node = tree.resolveInner(pos, -1);
+		let node: any = tree.resolveInner(pos, -1);
 
 		// Traverse up to find list-item node
 		while (node) {
@@ -357,7 +357,7 @@ export function shouldSkipRendering(
 		const node = tree.resolveInner(from, 1);
 
 		// Check node and parent nodes for special contexts
-		let current = node;
+		let current: any = node;
 		while (current) {
 			const nodeName = current.name.toLowerCase();
 			const nodeType = current.type.name.toLowerCase();

@@ -16,7 +16,7 @@ import { taskStatusChangeAnnotation } from "../task-operations/status-switcher";
  */
 export function autoDateManagerExtension(
 	app: App,
-	plugin: TaskProgressBarPlugin
+	plugin: TaskProgressBarPlugin,
 ) {
 	return EditorState.transactionFilter.of((tr) => {
 		return handleAutoDateManagerTransaction(tr, app, plugin);
@@ -33,7 +33,7 @@ export function autoDateManagerExtension(
 function handleAutoDateManagerTransaction(
 	tr: Transaction,
 	app: App,
-	plugin: TaskProgressBarPlugin
+	plugin: TaskProgressBarPlugin,
 ): TransactionSpec {
 	// Only process transactions that change the document
 	if (!tr.docChanged) {
@@ -78,7 +78,7 @@ function handleAutoDateManagerTransaction(
 		oldStatus,
 		newStatus,
 		plugin,
-		doc.line(lineNumber).text
+		doc.line(lineNumber).text,
 	);
 
 	if (dateOperations.length === 0) {
@@ -91,7 +91,7 @@ function handleAutoDateManagerTransaction(
 		doc,
 		lineNumber,
 		dateOperations,
-		plugin
+		plugin,
 	);
 	return result;
 }
@@ -208,7 +208,7 @@ function findTaskStatusChange(tr: Transaction): {
 			toA: number,
 			fromB: number,
 			toB: number,
-			inserted: Text
+			inserted: Text,
 		) => {
 			// Only process actual insertions that contain task markers
 			if (inserted.length === 0) {
@@ -240,7 +240,7 @@ function findTaskStatusChange(tr: Transaction): {
 								const deletedText =
 									tr.startState.doc.sliceString(
 										oldFromA,
-										oldToA
+										oldToA,
 									);
 								const deletedLines = deletedText.split("\n");
 
@@ -268,7 +268,7 @@ function findTaskStatusChange(tr: Transaction): {
 								// Ignore errors when trying to get deleted text
 							}
 						}
-					}
+					},
 				);
 
 				// If we couldn't find a corresponding old task, try the original method
@@ -313,7 +313,7 @@ function findTaskStatusChange(tr: Transaction): {
 					};
 				}
 			}
-		}
+		},
 	);
 
 	return taskChangedInfo;
@@ -331,7 +331,7 @@ function determineDateOperations(
 	oldStatus: string,
 	newStatus: string,
 	plugin: TaskProgressBarPlugin,
-	lineText: string
+	lineText: string,
 ): DateOperation[] {
 	const operations: DateOperation[] = [];
 	const settings = plugin.settings.autoDateManager;
@@ -399,7 +399,7 @@ function determineDateOperations(
 function hasExistingDate(
 	lineText: string,
 	dateType: string,
-	plugin: TaskProgressBarPlugin
+	plugin: TaskProgressBarPlugin,
 ): boolean {
 	const useDataviewFormat =
 		plugin.settings.preferMetadataFormat === "dataview";
@@ -407,15 +407,15 @@ function hasExistingDate(
 	if (useDataviewFormat) {
 		const fieldName = dateType === "start" ? "start" : dateType;
 		const pattern = new RegExp(
-			`\\[${fieldName}::\\s*\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{2}:\\d{2}(?::\\d{2})?)?\\]`
+			`\\[${fieldName}::\\s*\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{2}:\\d{2}(?::\\d{2})?)?\\]`,
 		);
 		return pattern.test(lineText);
 	} else {
 		const dateMarker = getDateMarker(dateType, plugin);
 		const pattern = new RegExp(
 			`${escapeRegex(
-				dateMarker
-			)}\\s*\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{2}:\\d{2}(?::\\d{2})?)?`
+				dateMarker,
+			)}\\s*\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{2}:\\d{2}(?::\\d{2})?)?`,
 		);
 		return pattern.test(lineText);
 	}
@@ -463,12 +463,12 @@ function applyDateOperations(
 	doc: Text,
 	lineNumber: number,
 	operations: DateOperation[],
-	plugin: TaskProgressBarPlugin
+	plugin: TaskProgressBarPlugin,
 ): TransactionSpec {
 	// Early validation: ensure line number is within bounds
 	if (lineNumber < 1 || lineNumber > tr.newDoc.lines) {
 		console.warn(
-			`[AutoDateManager] Line number ${lineNumber} is out of bounds (doc has ${tr.newDoc.lines} lines)`
+			`[AutoDateManager] Line number ${lineNumber} is out of bounds (doc has ${tr.newDoc.lines} lines)`,
 		);
 		return tr;
 	}
@@ -479,7 +479,7 @@ function applyDateOperations(
 	// Validate line boundaries
 	if (line.from > tr.newDoc.length || line.to > tr.newDoc.length) {
 		console.warn(
-			`[AutoDateManager] Line boundaries invalid: from=${line.from}, to=${line.to}, doc length=${tr.newDoc.length}`
+			`[AutoDateManager] Line boundaries invalid: from=${line.from}, to=${line.to}, doc length=${tr.newDoc.length}`,
 		);
 		return tr;
 	}
@@ -510,14 +510,14 @@ function applyDateOperations(
 				// Completed date goes at the end (before block reference ID)
 				insertPosition = findCompletedDateInsertPosition(
 					lineText,
-					plugin
+					plugin,
 				);
 			} else {
 				// Start date and cancelled date go after existing metadata but before completed date
 				insertPosition = findMetadataInsertPosition(
 					lineText,
 					plugin,
-					operation.dateType
+					operation.dateType,
 				);
 			}
 
@@ -531,7 +531,7 @@ function applyDateOperations(
 			// Keep minimal logging for debugging
 			if (clampedPosition !== absolutePosition) {
 				console.log(
-					`[AutoDateManager] Position adjusted: ${absolutePosition} -> ${clampedPosition} (doc length: ${tr.newDoc.length})`
+					`[AutoDateManager] Position adjusted: ${absolutePosition} -> ${clampedPosition} (doc length: ${tr.newDoc.length})`,
 				);
 			}
 
@@ -558,20 +558,20 @@ function applyDateOperations(
 					operation.dateType === "completed"
 						? "completion"
 						: operation.dateType === "cancelled"
-						? "cancelled"
-						: "unknown";
+							? "cancelled"
+							: "unknown";
 				datePattern = new RegExp(
 					`\\s*\\[${fieldName}::\\s*\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{2}:\\d{2}(?::\\d{2})?)?\\]`,
-					"g"
+					"g",
 				);
 			} else {
 				// For emoji format: ✅ 2024-01-01 or ❌ 2024-01-01
 				const dateMarker = getDateMarker(operation.dateType, plugin);
 				datePattern = new RegExp(
 					`\\s*${escapeRegex(
-						dateMarker
+						dateMarker,
 					)}\\s*\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{2}:\\d{2}(?::\\d{2})?)?`,
-					"g"
+					"g",
 				);
 			}
 
@@ -598,11 +598,11 @@ function applyDateOperations(
 				// Ensure positions are within document bounds
 				const safeFrom = Math.min(
 					Math.max(0, absoluteFrom),
-					tr.newDoc.length
+					tr.newDoc.length,
 				);
 				const safeTo = Math.min(
 					Math.max(0, absoluteTo),
-					tr.newDoc.length
+					tr.newDoc.length,
 				);
 
 				changes.push({
@@ -677,7 +677,7 @@ function applyDateOperations(
 		const finalChanges = validatedChanges.filter((change) => {
 			if (change.from > docLength || change.to > docLength) {
 				console.error(
-					`[AutoDateManager] ERROR: Change position exceeds document length! from=${change.from}, to=${change.to}, docLength=${docLength}`
+					`[AutoDateManager] ERROR: Change position exceeds document length! from=${change.from}, to=${change.to}, docLength=${docLength}`,
 				);
 				return false;
 			}
@@ -743,7 +743,7 @@ function formatDate(format: string): string {
  */
 function getDateMarker(
 	dateType: string,
-	plugin: TaskProgressBarPlugin
+	plugin: TaskProgressBarPlugin,
 ): string {
 	const settings = plugin.settings.autoDateManager;
 	const useDataviewFormat =
@@ -782,7 +782,7 @@ function getDateMarker(
 function findMetadataInsertPosition(
 	lineText: string,
 	plugin: TaskProgressBarPlugin,
-	dateType: string
+	dateType: string,
 ): number {
 	// Work with the full line text, don't extract block reference yet
 	const blockRef = detectBlockReference(lineText);
@@ -855,7 +855,9 @@ function findMetadataInsertPosition(
 		if (dateEmojis.includes(char)) {
 			// Check if this is followed by a date pattern
 			const afterEmoji = remainingText.slice(i + 1);
-			if (afterEmoji.match(/^\s*\d{4}-\d{2}-\d{2}/)) {
+			if (
+				afterEmoji.match(/^\s*\d{4}-\d{2}-\d{2}(?:\s+\d{1,2}:\d{2})?/)
+			) {
 				// This is a date marker, stop here
 				break;
 			}
@@ -890,7 +892,7 @@ function findMetadataInsertPosition(
 			const startMarker = getDateMarker("start", plugin);
 			const escapedStartMarker = escapeRegex(startMarker);
 			const startDatePattern = new RegExp(
-				`${escapedStartMarker}\\s*\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{2}:\\d{2}(?::\\d{2})?)?`
+				`${escapedStartMarker}\\s*\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{2}:\\d{2}(?::\\d{2})?)?`,
 			);
 			let startDateMatch = lineText.match(startDatePattern);
 
@@ -901,8 +903,8 @@ function findMetadataInsertPosition(
 				for (const emoji of commonStartEmojis) {
 					const pattern = new RegExp(
 						`${escapeRegex(
-							emoji
-						)}\\s*\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{2}:\\d{2}(?::\\d{2})?)?`
+							emoji,
+						)}\\s*\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{2}:\\d{2}(?::\\d{2})?)?`,
 					);
 					startDateMatch = lineText.match(pattern);
 					if (startDateMatch) {
@@ -963,7 +965,7 @@ function findMetadataInsertPosition(
  */
 function findCompletedDateInsertPosition(
 	lineText: string,
-	plugin: TaskProgressBarPlugin
+	plugin: TaskProgressBarPlugin,
 ): number {
 	// Use centralized block reference detection
 	const blockRef = detectBlockReference(lineText);

@@ -65,7 +65,7 @@ export class TaskListItemComponent extends Component {
 		private viewMode: string,
 		private app: App,
 		private plugin: TaskProgressBarPlugin,
-		selectionManager?: TaskSelectionManager
+		selectionManager?: TaskSelectionManager,
 	) {
 		super();
 
@@ -83,7 +83,7 @@ export class TaskListItemComponent extends Component {
 		if (!TaskListItemComponent.editorManager) {
 			TaskListItemComponent.editorManager = new InlineEditorManager(
 				this.app,
-				this.plugin
+				this.plugin,
 			);
 		}
 	}
@@ -99,7 +99,7 @@ export class TaskListItemComponent extends Component {
 					try {
 						await this.onTaskUpdate(originalTask, updatedTask);
 						console.log(
-							"listItem onTaskUpdate completed successfully"
+							"listItem onTaskUpdate completed successfully",
 						);
 						// Don't update task reference here - let onContentEditFinished handle it
 					} catch (error) {
@@ -112,7 +112,7 @@ export class TaskListItemComponent extends Component {
 			},
 			onContentEditFinished: (
 				targetEl: HTMLElement,
-				updatedTask: Task
+				updatedTask: Task,
 			) => {
 				// Update the task reference with the saved task
 				this.task = updatedTask;
@@ -125,13 +125,13 @@ export class TaskListItemComponent extends Component {
 
 				// Release the editor from the manager
 				TaskListItemComponent.editorManager?.releaseEditor(
-					this.task.id
+					this.task.id,
 				);
 			},
 			onMetadataEditFinished: (
 				targetEl: HTMLElement,
 				updatedTask: Task,
-				fieldType: string
+				fieldType: string,
 			) => {
 				// Update the task reference with the saved task
 				this.task = updatedTask;
@@ -141,7 +141,7 @@ export class TaskListItemComponent extends Component {
 
 				// Release the editor from the manager
 				TaskListItemComponent.editorManager?.releaseEditor(
-					this.task.id
+					this.task.id,
 				);
 			},
 			useEmbeddedEditor: true, // Enable Obsidian's embedded editor
@@ -149,7 +149,7 @@ export class TaskListItemComponent extends Component {
 
 		return TaskListItemComponent.editorManager!.getEditor(
 			this.task,
-			editorOptions
+			editorOptions,
 		);
 	}
 
@@ -159,7 +159,7 @@ export class TaskListItemComponent extends Component {
 	private isCurrentlyEditing(): boolean {
 		return (
 			TaskListItemComponent.editorManager?.hasActiveEditor(
-				this.task.id
+				this.task.id,
 			) || false
 		);
 	}
@@ -172,8 +172,8 @@ export class TaskListItemComponent extends Component {
 					"task-genius:selection-changed",
 					() => {
 						this.updateSelectionVisualState();
-					}
-				)
+					},
+				),
 			);
 
 			// Setup long press detection for mobile
@@ -185,7 +185,7 @@ export class TaskListItemComponent extends Component {
 							this.selectionManager?.enterSelectionMode();
 							this.handleMultiSelect();
 						},
-					}
+					},
 				);
 			}
 		}
@@ -210,11 +210,11 @@ export class TaskListItemComponent extends Component {
 					() => {
 						// Refresh view after operation
 						// The parent view should handle this via task updates
-					}
+					},
 				).catch((error) => {
 					console.error(
 						"Failed to show bulk operations menu:",
-						error
+						error,
 					);
 				});
 				return;
@@ -253,7 +253,7 @@ export class TaskListItemComponent extends Component {
 				const checkbox = createTaskCheckbox(
 					this.task.status,
 					this.task,
-					el
+					el,
 				);
 				this.checkboxInput = checkbox;
 
@@ -279,7 +279,7 @@ export class TaskListItemComponent extends Component {
 						}
 					}
 				});
-			}
+			},
 		);
 
 		this.element.appendChild(checkboxEl);
@@ -371,7 +371,7 @@ export class TaskListItemComponent extends Component {
 			}
 
 			const priorityConfig = TaskListItemComponent.PRIORITY_CONFIG.find(
-				(config) => config.value === numericPriority
+				(config) => config.value === numericPriority,
 			);
 			const classes = ["task-priority"];
 			if (priorityConfig) {
@@ -451,7 +451,7 @@ export class TaskListItemComponent extends Component {
 		if (this.task.metadata.cancelledDate) {
 			this.renderDateMetadata(
 				"cancelled",
-				this.task.metadata.cancelledDate
+				this.task.metadata.cancelledDate,
 			);
 		}
 
@@ -468,7 +468,7 @@ export class TaskListItemComponent extends Component {
 			if (this.task.metadata.scheduledDate) {
 				this.renderDateMetadata(
 					"scheduled",
-					this.task.metadata.scheduledDate
+					this.task.metadata.scheduledDate,
 				);
 			}
 
@@ -486,7 +486,7 @@ export class TaskListItemComponent extends Component {
 			if (this.task.metadata.completedDate) {
 				this.renderDateMetadata(
 					"completed",
-					this.task.metadata.completedDate
+					this.task.metadata.completedDate,
 				);
 			}
 
@@ -494,7 +494,7 @@ export class TaskListItemComponent extends Component {
 			if (this.task.metadata.createdDate) {
 				this.renderDateMetadata(
 					"created",
-					this.task.metadata.createdDate
+					this.task.metadata.createdDate,
 				);
 			}
 		}
@@ -542,13 +542,15 @@ export class TaskListItemComponent extends Component {
 			| "completed"
 			| "cancelled"
 			| "created",
-		dateValue: number
+		dateValue: number,
 	) {
 		const dateEl = this.metadataEl.createEl("div", {
 			cls: ["task-date", `task-${type}-date`],
 		});
 
 		const date = new Date(dateValue);
+		const dateOnly = new Date(date);
+		dateOnly.setHours(0, 0, 0, 0);
 		let dateText = "";
 		let cssClass = "";
 
@@ -560,19 +562,19 @@ export class TaskListItemComponent extends Component {
 			tomorrow.setDate(tomorrow.getDate() + 1);
 
 			// Format date
-			if (date.getTime() < today.getTime()) {
+			if (dateOnly.getTime() < today.getTime()) {
 				dateText =
 					t("Overdue") +
 					(this.settings.useRelativeTimeForDate
 						? " | " + getRelativeTimeString(date)
 						: "");
 				cssClass = "task-overdue";
-			} else if (date.getTime() === today.getTime()) {
+			} else if (dateOnly.getTime() === today.getTime()) {
 				dateText = this.settings.useRelativeTimeForDate
 					? getRelativeTimeString(date) || "Today"
 					: "Today";
 				cssClass = "task-due-today";
-			} else if (date.getTime() === tomorrow.getTime()) {
+			} else if (dateOnly.getTime() === tomorrow.getTime()) {
 				dateText = this.settings.useRelativeTimeForDate
 					? getRelativeTimeString(date) || "Tomorrow"
 					: "Tomorrow";
@@ -591,7 +593,7 @@ export class TaskListItemComponent extends Component {
 						year: "numeric",
 						month: "long",
 						day: "numeric",
-				  });
+					});
 		}
 
 		if (cssClass) {
@@ -611,20 +613,20 @@ export class TaskListItemComponent extends Component {
 						type === "due"
 							? "dueDate"
 							: type === "scheduled"
-							? "scheduledDate"
-							: type === "start"
-							? "startDate"
-							: type === "cancelled"
-							? "cancelledDate"
-							: type === "completed"
-							? "completedDate"
-							: null;
+								? "scheduledDate"
+								: type === "start"
+									? "startDate"
+									: type === "cancelled"
+										? "cancelledDate"
+										: type === "completed"
+											? "completedDate"
+											: null;
 
 					if (fieldType) {
 						this.getInlineEditor().showMetadataEditor(
 							dateEl,
 							fieldType,
-							dateString
+							dateString,
 						);
 					}
 				}
@@ -670,7 +672,7 @@ export class TaskListItemComponent extends Component {
 					this.getInlineEditor().showMetadataEditor(
 						projectEl,
 						"project",
-						this.task.metadata.project || ""
+						this.task.metadata.project || "",
 					);
 				}
 			});
@@ -700,7 +702,7 @@ export class TaskListItemComponent extends Component {
 							this.getInlineEditor().showMetadataEditor(
 								tagsContainer,
 								"tags",
-								tagsString
+								tagsString,
 							);
 						}
 					});
@@ -722,7 +724,7 @@ export class TaskListItemComponent extends Component {
 					this.getInlineEditor().showMetadataEditor(
 						recurrenceEl,
 						"recurrence",
-						this.task.metadata.recurrence || ""
+						this.task.metadata.recurrence || "",
 					);
 				}
 			});
@@ -743,7 +745,7 @@ export class TaskListItemComponent extends Component {
 					this.getInlineEditor().showMetadataEditor(
 						onCompletionEl,
 						"onCompletion",
-						this.task.metadata.onCompletion || ""
+						this.task.metadata.onCompletion || "",
 					);
 				}
 			});
@@ -755,7 +757,7 @@ export class TaskListItemComponent extends Component {
 			cls: "task-dependson",
 		});
 		dependsOnEl.textContent = `⛔ ${this.task.metadata.dependsOn?.join(
-			", "
+			", ",
 		)}`;
 
 		// Make dependsOn clickable for editing only if inline editor is enabled
@@ -766,7 +768,7 @@ export class TaskListItemComponent extends Component {
 					this.getInlineEditor().showMetadataEditor(
 						dependsOnEl,
 						"dependsOn",
-						this.task.metadata.dependsOn?.join(", ") || ""
+						this.task.metadata.dependsOn?.join(", ") || "",
 					);
 				}
 			});
@@ -787,7 +789,7 @@ export class TaskListItemComponent extends Component {
 					this.getInlineEditor().showMetadataEditor(
 						idEl,
 						"id",
-						this.task.metadata.id || ""
+						this.task.metadata.id || "",
 					);
 				}
 			});
@@ -884,7 +886,7 @@ export class TaskListItemComponent extends Component {
 		if (fieldsToShow.length === 0) {
 			menu.addItem((item) => {
 				item.setTitle(
-					"All metadata fields are already set"
+					"All metadata fields are already set",
 				).setDisabled(true);
 			});
 		} else {
@@ -901,7 +903,7 @@ export class TaskListItemComponent extends Component {
 
 							editor.showMetadataEditor(
 								tempContainer,
-								field.key as any
+								field.key as any,
 							);
 						});
 				});
@@ -992,7 +994,7 @@ export class TaskListItemComponent extends Component {
 		this.markdownRenderer = new MarkdownRendererComponent(
 			this.app,
 			this.contentEl,
-			this.task.filePath
+			this.task.filePath,
 		);
 		this.addChild(this.markdownRenderer);
 
@@ -1019,11 +1021,11 @@ export class TaskListItemComponent extends Component {
 			// If disabled, always use multi-line (traditional) layout
 			this.contentMetadataContainer.toggleClass(
 				"multi-line-content",
-				true
+				true,
 			);
 			this.contentMetadataContainer.toggleClass(
 				"single-line-content",
-				false
+				false,
 			);
 			return;
 		}
@@ -1034,11 +1036,11 @@ export class TaskListItemComponent extends Component {
 		// Apply appropriate layout class using Obsidian's toggleClass method
 		this.contentMetadataContainer.toggleClass(
 			"multi-line-content",
-			isMultiLine
+			isMultiLine,
 		);
 		this.contentMetadataContainer.toggleClass(
 			"single-line-content",
-			!isMultiLine
+			!isMultiLine,
 		);
 	}
 
@@ -1067,7 +1069,7 @@ export class TaskListItemComponent extends Component {
 
 		// Method 4: Check for elements that typically cause multi-line layout
 		const hasBlockElements = this.contentEl.querySelector(
-			"br, div, p, ul, ol, li, blockquote"
+			"br, div, p, ul, ol, li, blockquote",
 		);
 		if (hasBlockElements) {
 			return true;

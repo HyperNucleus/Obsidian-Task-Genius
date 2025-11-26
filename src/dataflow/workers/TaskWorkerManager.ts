@@ -669,7 +669,7 @@ export class TaskWorkerManager extends Component {
 		if (!this.active) return;
 
 		// 检查所有队列，按优先级从高到低获取任务
-		let queueItem: QueueItem | undefined;
+		let queueItem: QueueItem | null | undefined;
 
 		for (let priority = 0; priority < this.queues.length; priority++) {
 			if (!this.queues[priority].isEmpty()) {

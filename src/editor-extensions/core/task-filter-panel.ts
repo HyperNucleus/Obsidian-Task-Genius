@@ -59,7 +59,7 @@ export const taskFilterState = StateField.define<boolean>({
 	},
 	provide: (field) =>
 		showPanel.from(field, (active) =>
-			active ? createTaskFilterPanel : null
+			active ? createTaskFilterPanel : null,
 		),
 });
 
@@ -87,7 +87,7 @@ export const actionButtonState = StateField.define<boolean>({
 			setTimeout(() => {
 				// Get the editor view from the transaction state
 				const view = tr.state.field(
-					editorInfoField
+					editorInfoField,
 				) as unknown as ItemView;
 				const editor = tr.state.field(editorEditorField);
 				if (
@@ -119,7 +119,7 @@ export const actionButtonState = StateField.define<boolean>({
 									item.setTitle(t("Reset")).onClick(() => {
 										editor?.dispatch({
 											effects: updateActiveFilters.of(
-												DEFAULT_FILTER_OPTIONS
+												DEFAULT_FILTER_OPTIONS,
 											),
 										});
 										applyTaskFilters(editor, plugin);
@@ -133,11 +133,13 @@ export const actionButtonState = StateField.define<boolean>({
 								item.setTitle(
 									editor.state.field(taskFilterState)
 										? t("Hide filter panel")
-										: t("Show filter panel")
+										: t("Show filter panel"),
 								).onClick(() => {
 									editor?.dispatch({
 										effects: toggleTaskFilter.of(
-											!editor.state.field(taskFilterState)
+											!editor.state.field(
+												taskFilterState,
+											),
 										),
 									});
 								});
@@ -162,25 +164,25 @@ export const actionButtonState = StateField.define<boolean>({
 																updateActiveFilters.of(
 																	{
 																		...preset.options,
-																	}
+																	},
 																),
 														});
 														// Apply filters immediately
 														applyTaskFilters(
 															editor,
-															plugin
+															plugin,
 														);
 													}
-												}
+												},
 											);
 										});
-									}
+									},
 								);
 							}
 
 							// Show the menu
 							menu.showAtMouseEvent(event);
-						}
+						},
 					);
 					plugin.register(() => {
 						filterAction.detach();
@@ -301,7 +303,7 @@ export function migrateOldFilterOptions(options: any): TaskFilterOptions {
 // Helper function to get filter option value safely with proper typing
 function getFilterOption(
 	options: TaskFilterOptions,
-	key: keyof TaskFilterOptions
+	key: keyof TaskFilterOptions,
 ): any {
 	return options[key];
 }
@@ -338,7 +340,7 @@ function mapTaskForFiltering(task: Task): TaskIndexTask {
 		const parsedDate = moment(
 			task.date,
 			[moment.ISO_8601, "YYYY-MM-DD", "DD.MM.YYYY", "MM/DD/YYYY"],
-			true
+			true,
 		);
 		if (parsedDate.isValid()) {
 			dueDateTimestamp = parsedDate.valueOf(); // Get timestamp in ms
@@ -385,7 +387,7 @@ function filterPanelDisplay(
 	view: EditorView,
 	dom: HTMLElement,
 	options: TaskFilterOptions,
-	plugin: TaskProgressBarPlugin
+	plugin: TaskProgressBarPlugin,
 ) {
 	// Get current active filters from state
 	let activeFilters = getActiveFiltersForView(view);
@@ -394,7 +396,7 @@ function filterPanelDisplay(
 		(view: EditorView, plugin: TaskProgressBarPlugin) => {
 			applyTaskFilters(view, plugin);
 		},
-		2000
+		2000,
 	);
 
 	// Create header with title
@@ -438,7 +440,7 @@ function filterPanelDisplay(
 					if (selectedId) {
 						// Find the selected preset
 						const selectedPreset = presetFilters.find(
-							(p) => p.id === selectedId
+							(p) => p.id === selectedId,
 						);
 						if (selectedPreset) {
 							// Apply the preset's filter options
@@ -486,13 +488,13 @@ function filterPanelDisplay(
 		.setName(t("Query"))
 		.setDesc(
 			t(
-				"Use boolean operations: AND, OR, NOT. Example: 'text content AND #tag1 AND DATE:<2022-01-02 NOT PRIORITY:>=#B' - Supports >, <, =, >=, <=, != for PRIORITY and DATE."
-			)
+				"Use boolean operations: AND, OR, NOT. Example: 'text content AND #tag1 AND DATE:<2022-01-02 NOT PRIORITY:>=#B' - Supports >, <, =, >=, <=, != for PRIORITY and DATE.",
+			),
 		)
 		.addText((text) => {
 			queryInput = text;
 			text.setValue(
-				getFilterOption(options, "advancedFilterQuery")
+				getFilterOption(options, "advancedFilterQuery"),
 			).onChange((value) => {
 				activeFilters.advancedFilterQuery = value;
 				// Update state with new active filters
@@ -544,8 +546,8 @@ function filterPanelDisplay(
 		.setName(t("Filter Mode"))
 		.setDesc(
 			t(
-				"Choose whether to include or exclude tasks that match the filters"
-			)
+				"Choose whether to include or exclude tasks that match the filters",
+			),
 		)
 		.addDropdown((dropdown) => {
 			filterModeDropdown = dropdown;
@@ -668,7 +670,7 @@ function filterPanelDisplay(
 
 					// Add to settings
 					plugin.settings.taskFilter.presetTaskFilters.push(
-						newPreset
+						newPreset,
 					);
 					plugin.saveSettings();
 
@@ -728,7 +730,7 @@ function filterPanelDisplay(
 			const propName = `include${status.id}` as keyof TaskFilterOptions;
 			if (statusToggles[propName]) {
 				statusToggles[propName].setValue(
-					(activeFilters as any)[propName]
+					(activeFilters as any)[propName],
 				);
 			}
 		}
@@ -738,7 +740,7 @@ function filterPanelDisplay(
 			const propName = `include${option.id}` as keyof TaskFilterOptions;
 			if (relatedToggles[propName]) {
 				relatedToggles[propName].setValue(
-					(activeFilters as any)[propName]
+					(activeFilters as any)[propName],
 				);
 			}
 		}
@@ -826,11 +828,11 @@ function applyTaskFilters(view: EditorView, plugin: TaskProgressBarPlugin) {
 		if (activeFilters.advancedFilterQuery.trim() !== "") {
 			try {
 				const parseResult = parseAdvancedFilterQuery(
-					activeFilters.advancedFilterQuery
+					activeFilters.advancedFilterQuery,
 				);
 				const result = evaluateFilterNode(
 					parseResult,
-					mapTaskForFiltering(task) as unknown as TaskIndexTask
+					mapTaskForFiltering(task) as unknown as TaskIndexTask,
 				);
 				// Use the direct result, filter mode will be handled later
 				matchesQuery = result;
@@ -946,7 +948,7 @@ function applyTaskFilters(view: EditorView, plugin: TaskProgressBarPlugin) {
 	if (activeFilters.filterMode === "INCLUDE") {
 		// In INCLUDE mode, hide tasks that don't match
 		tasksToHide = tasks.filter(
-			(task, index) => !matchingTaskIds.has(index)
+			(task, index) => !matchingTaskIds.has(index),
 		);
 	} else {
 		// In EXCLUDE mode, hide tasks that do match
@@ -969,7 +971,7 @@ function applyTaskFilters(view: EditorView, plugin: TaskProgressBarPlugin) {
 		// @ts-ignore
 		?.filterAction?.toggleClass(
 			"task-filter-active",
-			checkFilterChanges(view, plugin)
+			checkFilterChanges(view, plugin),
 		);
 
 	// Apply decorations to hide filtered tasks
@@ -1000,11 +1002,11 @@ function shouldHideTask(task: Task, filters: TaskFilterOptions): boolean {
 	if (filters.advancedFilterQuery.trim() !== "") {
 		try {
 			const parseResult = parseAdvancedFilterQuery(
-				filters.advancedFilterQuery
+				filters.advancedFilterQuery,
 			);
 			const result = evaluateFilterNode(
 				parseResult,
-				mapTaskForFiltering(task)
+				mapTaskForFiltering(task),
 			);
 			// Determine visibility based on filter mode
 			const shouldShow =
@@ -1029,7 +1031,7 @@ function shouldHideTask(task: Task, filters: TaskFilterOptions): boolean {
  */
 function shouldShowDueToRelationships(
 	task: Task,
-	filters: TaskFilterOptions
+	filters: TaskFilterOptions,
 ): boolean {
 	// Only consider relationships for tasks that pass status filters
 	// Parent relationship
@@ -1059,11 +1061,11 @@ function shouldShowDueToRelationships(
 			if (filters.advancedFilterQuery.trim() !== "") {
 				try {
 					const parseResult = parseAdvancedFilterQuery(
-						filters.advancedFilterQuery
+						filters.advancedFilterQuery,
 					);
 					const result = evaluateFilterNode(
 						parseResult,
-						mapTaskForFiltering(task.parentTask)
+						mapTaskForFiltering(task.parentTask),
 					);
 					// Determine visibility based on filter mode
 					parentPassesQueryFilter =
@@ -1101,11 +1103,11 @@ function shouldShowDueToRelationships(
 				if (filters.advancedFilterQuery.trim() !== "") {
 					try {
 						const parseResult = parseAdvancedFilterQuery(
-							filters.advancedFilterQuery
+							filters.advancedFilterQuery,
 						);
 						const result = evaluateFilterNode(
 							parseResult,
-							mapTaskForFiltering(sibling)
+							mapTaskForFiltering(sibling),
 						);
 						// Determine visibility based on filter mode
 						siblingPassesQueryFilter =
@@ -1114,7 +1116,7 @@ function shouldShowDueToRelationships(
 					} catch (error) {
 						console.error(
 							"Error evaluating advanced filter:",
-							error
+							error,
 						);
 					}
 				}
@@ -1137,7 +1139,7 @@ function shouldShowDueToRelationships(
  */
 function hasMatchingDescendant(
 	task: Task,
-	filters: TaskFilterOptions
+	filters: TaskFilterOptions,
 ): boolean {
 	// Check each child task
 	for (const child of task.childTasks) {
@@ -1155,11 +1157,11 @@ function hasMatchingDescendant(
 			if (filters.advancedFilterQuery.trim() !== "") {
 				try {
 					const parseResult = parseAdvancedFilterQuery(
-						filters.advancedFilterQuery
+						filters.advancedFilterQuery,
 					);
 					const result = evaluateFilterNode(
 						parseResult,
-						mapTaskForFiltering(child)
+						mapTaskForFiltering(child),
 					);
 					// Determine visibility based on filter mode
 					childPassesQueryFilter =
@@ -1187,7 +1189,7 @@ function hasMatchingDescendant(
 // Apply decorations to hide filtered tasks
 function applyHiddenTaskDecorations(
 	view: EditorView,
-	ranges: Array<{ from: number; to: number }> = []
+	ranges: Array<{ from: number; to: number }> = [],
 ) {
 	// Create decorations for hidden tasks
 	const decorations = ranges.map((range) => {
@@ -1204,7 +1206,7 @@ function applyHiddenTaskDecorations(
 				Decoration.none.update({
 					add: decorations,
 					filter: () => false,
-				})
+				}),
 			),
 		});
 	} else {
@@ -1281,7 +1283,7 @@ export function getActiveFiltersForView(view: EditorView): TaskFilterOptions {
  * @returns The array of hidden task ranges
  */
 export function getHiddenTaskRangesForView(
-	view: EditorView
+	view: EditorView,
 ): Array<{ from: number; to: number }> {
 	if (view.state.field(hiddenTaskRangesState, false)) {
 		return view.state.field(hiddenTaskRangesState);
@@ -1304,7 +1306,7 @@ function resetTaskFilters(view: EditorView) {
 		// @ts-ignore
 		?.filterAction?.toggleClass(
 			"task-filter-active",
-			false // Always false on reset
+			false, // Always false on reset
 		);
 
 	// Apply decorations to hide filtered tasks
@@ -1314,7 +1316,7 @@ function resetTaskFilters(view: EditorView) {
 // Find all tasks in the document and build the task hierarchy
 function findAllTasks(
 	view: EditorView,
-	taskStatusMarks: Record<string, string>
+	taskStatusMarks: Record<string, string>,
 ): Task[] {
 	const doc = view.state.doc;
 	const tasks: Task[] = [];
@@ -1340,7 +1342,7 @@ function findAllTasks(
 
 	// Regex for extracting dates (looking for YYYY-MM-DD format or other common date formats)
 	const dateRegex =
-		/\d{4}-\d{2}-\d{2}|\d{2}\.\d{2}\.\d{4}|\d{2}\/\d{2}\/\d{4}/g;
+		/\d{4}-\d{2}-\d{2}(?:\s+\d{1,2}:\d{2})?|\d{2}\.\d{2}\.\d{4}|\d{2}\/\d{2}\/\d{4}/g;
 
 	// Search the document for task lines
 	for (let i = 1; i <= doc.lines; i++) {

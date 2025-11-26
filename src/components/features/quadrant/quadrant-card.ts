@@ -18,7 +18,7 @@ export class QuadrantCardComponent extends Component {
 	private params: {
 		onTaskStatusUpdate?: (
 			taskId: string,
-			newStatusMark: string
+			newStatusMark: string,
 		) => Promise<void>;
 		onTaskSelected?: (task: Task) => void;
 		onTaskCompleted?: (task: Task) => void;
@@ -34,13 +34,13 @@ export class QuadrantCardComponent extends Component {
 		params: {
 			onTaskStatusUpdate?: (
 				taskId: string,
-				newStatusMark: string
+				newStatusMark: string,
 			) => Promise<void>;
 			onTaskSelected?: (task: Task) => void;
 			onTaskCompleted?: (task: Task) => void;
 			onTaskContextMenu?: (ev: MouseEvent, task: Task) => void;
 			onTaskUpdated?: (task: Task) => Promise<void>;
-		} = {}
+		} = {},
 	) {
 		super();
 		this.app = app;
@@ -54,7 +54,7 @@ export class QuadrantCardComponent extends Component {
 			this.app,
 			this.containerEl,
 			this.task.filePath,
-			true // hideMarks = true
+			true, // hideMarks = true
 		);
 		this.addChild(this.markdownRenderer);
 	}
@@ -96,7 +96,7 @@ export class QuadrantCardComponent extends Component {
 		const checkbox = createTaskCheckbox(
 			this.task.status,
 			this.task,
-			this.checkboxEl
+			this.checkboxEl,
 		);
 
 		// Add change event listener for checkbox
@@ -132,7 +132,7 @@ export class QuadrantCardComponent extends Component {
 			this.app,
 			titleEl,
 			this.task.filePath,
-			true // hideMarks = true
+			true, // hideMarks = true
 		);
 		this.addChild(contentRenderer);
 
@@ -162,18 +162,18 @@ export class QuadrantCardComponent extends Component {
 
 	private createMetadata() {
 		this.metadataEl = this.containerEl.createDiv(
-			"tg-quadrant-card-metadata"
+			"tg-quadrant-card-metadata",
 		);
 
 		// Due date
 		const dueDate = this.getTaskDueDate();
 		if (dueDate) {
 			const dueDateEl = this.metadataEl.createDiv(
-				"tg-quadrant-card-due-date"
+				"tg-quadrant-card-due-date",
 			);
 
 			const dueDateText = dueDateEl.createSpan(
-				"tg-quadrant-card-due-date-text"
+				"tg-quadrant-card-due-date-text",
 			);
 			dueDateText.textContent = this.formatDueDate(dueDate);
 
@@ -359,7 +359,7 @@ export class QuadrantCardComponent extends Component {
 						from: { line: lineNumber, ch: 0 },
 						to: { line: lineNumber, ch: 0 },
 					},
-					true
+					true,
 				);
 			}
 		}
@@ -391,7 +391,7 @@ export class QuadrantCardComponent extends Component {
 		} catch (error) {
 			console.error(
 				`Failed to add tag ${tag} to task ${this.task.id}:`,
-				error
+				error,
 			);
 		}
 	}
@@ -403,7 +403,7 @@ export class QuadrantCardComponent extends Component {
 
 			// Remove the tag from the tags array
 			updatedTask.metadata.tags = updatedTask.metadata.tags.filter(
-				(t) => t !== tag
+				(t) => t !== tag,
 			);
 
 			// Update the local task reference and re-render
@@ -417,7 +417,7 @@ export class QuadrantCardComponent extends Component {
 		} catch (error) {
 			console.error(
 				`Failed to remove tag ${tag} from task ${this.task.id}:`,
-				error
+				error,
 			);
 		}
 	}
@@ -485,7 +485,9 @@ export class QuadrantCardComponent extends Component {
 
 	private getTaskDueDate(): Date | null {
 		// Extract due date from task content - this is a simplified implementation
-		const match = this.task.content.match(/📅\s*(\d{4}-\d{2}-\d{2})/);
+		const match = this.task.content.match(
+			/📅\s*(\d{4}-\d{2}-\d{2}(?:\s+\d{1,2}:\d{2})?)/,
+		);
 		if (match) {
 			return new Date(match[1]);
 		}
