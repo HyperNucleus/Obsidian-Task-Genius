@@ -387,10 +387,10 @@ export class QuickCaptureModal extends BaseQuickCaptureModal {
 	private createDateInputs(container: HTMLElement): void {
 		// Start Date
 		new Setting(container).setName(t("Start Date")).addText((text) => {
-			text.setPlaceholder("YYYY-MM-DD")
+			text.setPlaceholder("YYYY-MM-DD HH:mm")
 				.setValue(
 					this.taskMetadata.startDate
-						? this.formatDate(this.taskMetadata.startDate)
+						? this.formatDateInputValue(this.taskMetadata.startDate)
 						: "",
 				)
 				.onChange((value) => {
@@ -405,16 +405,16 @@ export class QuickCaptureModal extends BaseQuickCaptureModal {
 					}
 					this.updatePreview();
 				});
-			text.inputEl.type = "date";
+			text.inputEl.type = "datetime-local";
 			this.startDateInput = text.inputEl;
 		});
 
 		// Due Date
 		new Setting(container).setName(t("Due Date")).addText((text) => {
-			text.setPlaceholder("YYYY-MM-DD")
+			text.setPlaceholder("YYYY-MM-DD HH:mm")
 				.setValue(
 					this.taskMetadata.dueDate
-						? this.formatDate(this.taskMetadata.dueDate)
+						? this.formatDateInputValue(this.taskMetadata.dueDate)
 						: "",
 				)
 				.onChange((value) => {
@@ -429,16 +429,18 @@ export class QuickCaptureModal extends BaseQuickCaptureModal {
 					}
 					this.updatePreview();
 				});
-			text.inputEl.type = "date";
+			text.inputEl.type = "datetime-local";
 			this.dueDateInput = text.inputEl;
 		});
 
 		// Scheduled Date
 		new Setting(container).setName(t("Scheduled Date")).addText((text) => {
-			text.setPlaceholder("YYYY-MM-DD")
+			text.setPlaceholder("YYYY-MM-DD HH:mm")
 				.setValue(
 					this.taskMetadata.scheduledDate
-						? this.formatDate(this.taskMetadata.scheduledDate)
+						? this.formatDateInputValue(
+								this.taskMetadata.scheduledDate,
+							)
 						: "",
 				)
 				.onChange((value) => {
@@ -453,7 +455,7 @@ export class QuickCaptureModal extends BaseQuickCaptureModal {
 					}
 					this.updatePreview();
 				});
-			text.inputEl.type = "date";
+			text.inputEl.type = "datetime-local";
 			this.scheduledDateInput = text.inputEl;
 		});
 	}
@@ -863,24 +865,18 @@ export class QuickCaptureModal extends BaseQuickCaptureModal {
 		// Update metadata (only if not manually set)
 		if (aggregatedStartDate && !this.isManuallySet("startDate")) {
 			this.taskMetadata.startDate = aggregatedStartDate;
-			if (this.startDateInput) {
-				this.startDateInput.value =
-					this.formatDate(aggregatedStartDate);
-			}
+			this.setDateInputValue(this.startDateInput, aggregatedStartDate);
 		}
 		if (aggregatedDueDate && !this.isManuallySet("dueDate")) {
 			this.taskMetadata.dueDate = aggregatedDueDate;
-			if (this.dueDateInput) {
-				this.dueDateInput.value = this.formatDate(aggregatedDueDate);
-			}
+			this.setDateInputValue(this.dueDateInput, aggregatedDueDate);
 		}
 		if (aggregatedScheduledDate && !this.isManuallySet("scheduledDate")) {
 			this.taskMetadata.scheduledDate = aggregatedScheduledDate;
-			if (this.scheduledDateInput) {
-				this.scheduledDateInput.value = this.formatDate(
-					aggregatedScheduledDate,
-				);
-			}
+			this.setDateInputValue(
+				this.scheduledDateInput,
+				aggregatedScheduledDate,
+			);
 		}
 	}
 
@@ -903,6 +899,19 @@ export class QuickCaptureModal extends BaseQuickCaptureModal {
 			this.taskMetadata.manuallySet = {};
 		}
 		this.taskMetadata.manuallySet[field] = true;
+	}
+
+	private setDateInputValue(
+		input: HTMLInputElement | undefined,
+		value?: Date,
+	): void {
+		if (!input) return;
+		input.value = this.formatDateInputValue(value);
+	}
+
+	private formatDateInputValue(value?: Date): string {
+		if (!value) return "";
+		return moment(value).format("YYYY-MM-DD[T]HH:mm");
 	}
 
 	/**

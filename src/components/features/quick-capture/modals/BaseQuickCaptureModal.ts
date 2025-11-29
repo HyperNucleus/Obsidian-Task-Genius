@@ -13,6 +13,7 @@ import {
 	processDateTemplates,
 } from "@/utils/file/file-operations";
 import { t } from "@/translations/helper";
+import { formatDateSmart, isDateOnly } from "@/utils/date/date-utils";
 import { SuggestManager } from "@/components/ui/suggest";
 import { EmbeddableMarkdownEditor } from "@/editor-extensions/core/markdown-editor";
 
@@ -138,6 +139,12 @@ export abstract class BaseQuickCaptureModal extends Modal {
 			if (typeof value === "string") {
 				const isoParsed = moment(value, moment.ISO_8601, true);
 				if (isoParsed.isValid()) return isoParsed.toDate();
+				const dateTimeParsed = moment(
+					value,
+					["YYYY-MM-DD HH:mm", "YYYY-MM-DDTHH:mm"],
+					true,
+				);
+				if (dateTimeParsed.isValid()) return dateTimeParsed.toDate();
 				const strictDate = moment(value, "YYYY-MM-DD", true);
 				if (strictDate.isValid()) return strictDate.toDate();
 			}
@@ -809,18 +816,39 @@ export abstract class BaseQuickCaptureModal extends Modal {
 	 * Format date
 	 */
 	protected formatDate(date: Date): string {
-		return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
-			2,
-			"0",
-		)}-${String(date.getDate()).padStart(2, "0")}`;
+		return formatDateSmart(date, { includeSeconds: false });
 	}
 
 	/**
 	 * Parse date
 	 */
 	protected parseDate(dateString: string): Date {
-		const [year, month, day] = dateString.split("-").map(Number);
-		return new Date(year, month - 1, day);
+		const trimmed = dateString?.trim();
+		if (!trimmed) return new Date("");
+
+		const parsed = moment(
+			trimmed,
+			["YYYY-MM-DD HH:mm", "YYYY-MM-DDTHH:mm", "YYYY-MM-DD"],
+			true,
+		);
+		if (parsed.isValid()) {
+			const date = parsed.toDate();
+			// Preserve date-only timestamps as midnight to keep smart formatting consistent
+			if (parsed.creationData().format === "YYYY-MM-DD") {
+				date.setHours(0, 0, 0, 0);
+			}
+			return date;
+		}
+
+		const fallback = new Date(trimmed);
+		if (isNaN(fallback.getTime())) {
+			return new Date("");
+		}
+
+		if (isDateOnly(fallback)) {
+			fallback.setHours(0, 0, 0, 0);
+		}
+		return fallback;
 	}
 
 	/**

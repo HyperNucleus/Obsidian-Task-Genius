@@ -1,7 +1,7 @@
-import { App, Notice } from "obsidian";
+import { App, Notice, moment } from "obsidian";
 import TaskProgressBarPlugin from "../index";
 import { t } from "../translations/helper";
-import { moment } from "obsidian";
+import { formatDateSmart } from "@/utils/date/date-utils";
 
 export class ElectronQuickCapture {
 	private captureWindow: any = null;
@@ -396,6 +396,12 @@ export class ElectronQuickCapture {
 	private parseDueDate(dateStr: string): string | undefined {
 		if (!dateStr) return undefined;
 
+		const trimmed = dateStr.trim();
+		const normalize = (value: moment.Moment): string | undefined => {
+			if (!value || !value.isValid()) return undefined;
+			return formatDateSmart(value.toDate(), { includeSeconds: false });
+		};
+
 		try {
 			// Try natural language parsing first
 			const naturalParsers = [
@@ -406,26 +412,33 @@ export class ElectronQuickCapture {
 			];
 
 			for (const parser of naturalParsers) {
-				const match = dateStr.match(parser.pattern);
+				const match = trimmed.match(parser.pattern);
 				if (match) {
-					const offset = parser.offsetMatch 
-						? parseInt(match[parser.offsetMatch]) 
+					const offset = parser.offsetMatch
+						? parseInt(match[parser.offsetMatch])
 						: parser.offset;
-					const date = moment().add(offset, 'days');
-					return date.format('YYYY-MM-DD');
+					const date = moment().add(offset, "days");
+					const formatted = normalize(date);
+					if (formatted) return formatted;
 				}
 			}
 
-			// Try parsing as date
-			const parsed = moment(dateStr);
-			if (parsed.isValid()) {
-				return parsed.format('YYYY-MM-DD');
-			}
+			// Try parsing with strict formats (supporting date and datetime)
+			const parsed = moment(
+				trimmed,
+				[moment.ISO_8601, "YYYY-MM-DD HH:mm", "YYYY-MM-DDTHH:mm", "YYYY-MM-DD"],
+				true,
+			);
+			const strictFormatted = normalize(parsed);
+			if (strictFormatted) return strictFormatted;
+
+			// Fallback to loose parsing
+			const fallback = moment(trimmed);
+			return normalize(fallback);
 		} catch {
 			// Ignore parsing errors
+			return undefined;
 		}
-
-		return undefined;
 	}
 
 	private async getDataForWindow(type: string): Promise<any> {
@@ -810,7 +823,7 @@ export class ElectronQuickCapture {
 			<div class="metadata-item">
 				<label>Start Date</label>
 				<div class="date-input-wrapper">
-					<input type="date" id="start-date-picker" class="date-picker">
+					<input type="datetime-local" id="start-date-picker" class="date-picker">
 					<input type="text" id="start-date-text" placeholder="today, tomorrow" class="date-text" style="display:none">
 					<button type="button" class="date-toggle" data-date-type="start" title="Toggle input type">🛫</button>
 				</div>
@@ -819,7 +832,7 @@ export class ElectronQuickCapture {
 			<div class="metadata-item">
 				<label>Due Date</label>
 				<div class="date-input-wrapper">
-					<input type="date" id="due-date-picker" class="date-picker">
+					<input type="datetime-local" id="due-date-picker" class="date-picker">
 					<input type="text" id="due-date-text" placeholder="tomorrow, next week" class="date-text" style="display:none">
 					<button type="button" class="date-toggle" data-date-type="due" title="Toggle input type">📅</button>
 				</div>
@@ -828,7 +841,7 @@ export class ElectronQuickCapture {
 			<div class="metadata-item">
 				<label>Scheduled Date</label>
 				<div class="date-input-wrapper">
-					<input type="date" id="scheduled-date-picker" class="date-picker">
+					<input type="datetime-local" id="scheduled-date-picker" class="date-picker">
 					<input type="text" id="scheduled-date-text" placeholder="next monday" class="date-text" style="display:none">
 					<button type="button" class="date-toggle" data-date-type="scheduled" title="Toggle input type">⏳</button>
 				</div>
@@ -1233,7 +1246,8 @@ export class ElectronQuickCapture {
 		function parseNaturalDate(input) {
 			if (!input) return '';
 			
-			const lower = input.toLowerCase().trim();
+			const trimmed = input.trim();
+			const lower = trimmed.toLowerCase();
 			const today = new Date();
 			
 			// Natural language patterns
@@ -1309,21 +1323,41 @@ export class ElectronQuickCapture {
 			
 			// Try to parse as a regular date
 			try {
-				const parsed = new Date(input);
+				const parsed = new Date(trimmed);
 				if (!isNaN(parsed.getTime())) {
 					return formatDate(parsed);
 				}
 			} catch {}
 			
 			// If not a natural language pattern, return original
-			return input;
+			return trimmed;
 		}
 		
 		function formatDate(date) {
 			const year = date.getFullYear();
 			const month = String(date.getMonth() + 1).padStart(2, '0');
 			const day = String(date.getDate()).padStart(2, '0');
-			return year + '-' + month + '-' + day;
+			const hasTime =
+				date.getHours() !== 0 ||
+				date.getMinutes() !== 0 ||
+				date.getSeconds() !== 0 ||
+				date.getMilliseconds() !== 0;
+			if (!hasTime) {
+				return year + '-' + month + '-' + day;
+			}
+			const hours = String(date.getHours()).padStart(2, '0');
+			const minutes = String(date.getMinutes()).padStart(2, '0');
+			return (
+				year +
+				'-' +
+				month +
+				'-' +
+				day +
+				' ' +
+				hours +
+				':' +
+				minutes
+			);
 		}
 	</script>
 </body>

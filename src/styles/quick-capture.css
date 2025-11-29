@@ -632,3 +632,7 @@
 
 	gap: var(--size-4-3);
 }
+
+.quick-capture-modal .setting-item-control input[type="datetime-local"] {
+	width: 10rem;
+}
