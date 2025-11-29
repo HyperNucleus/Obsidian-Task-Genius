@@ -172,23 +172,10 @@ export class TGYearView<T = unknown> extends BaseView<T> {
 			...e,
 			start: new Date(e.start),
 			end: e.end ? new Date(e.end) : undefined,
-			allDay: this.isAllDayEvent(e),
+			// Preserve original allDay value; default to true if not specified (most tasks are date-only)
+			allDay: (e as unknown as CalendarEvent).allDay ?? true,
 			metadata: e.metadata as CalendarEvent["metadata"],
 		})) as unknown as CalendarEvent[];
-	}
-
-	/**
-	 * Check if event is all-day
-	 */
-	protected isAllDayEvent(event: TGCalendarEvent): boolean {
-		const start = new Date(event.start);
-		const end = event.end ? new Date(event.end) : start;
-		return (
-			start.getHours() === 0 &&
-			start.getMinutes() === 0 &&
-			(end.getHours() === 0 ||
-				(end.getHours() === 23 && end.getMinutes() === 59))
-		);
 	}
 
 	/**

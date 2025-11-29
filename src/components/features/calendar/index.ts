@@ -20,6 +20,7 @@ import {
 	DropdownComponent,
 	moment,
 	Notice,
+	setIcon,
 } from "obsidian";
 import {
 	Calendar,
@@ -616,9 +617,7 @@ export class CalendarComponent extends Component {
 				const iconEl = btn.createSpan({
 					cls: "calendar-segment-icon",
 				});
-				import("obsidian").then(({ setIcon }) => {
-					setIcon(iconEl, customView.icon);
-				});
+				setIcon(iconEl, customView.icon);
 
 				// Short label (first letter of name)
 				btn.createSpan({
@@ -1235,6 +1234,15 @@ export class CalendarComponent extends Component {
 		x: number,
 		y: number,
 	) {
+		// Extract original Task from event metadata to ensure filePath and line are available
+		const task = getTaskFromEvent(event as any);
+		if (!task) {
+			console.warn(
+				"Context menu: Could not find original task from event",
+			);
+			return;
+		}
+
 		// Create a synthetic MouseEvent-like object with the coordinates
 		const syntheticEvent = {
 			clientX: x,
@@ -1243,11 +1251,8 @@ export class CalendarComponent extends Component {
 			stopPropagation: () => {},
 		} as MouseEvent;
 
-		console.log("Event context menu clicked");
-
-		// Convert to CalendarEvent and call our handler
-		const calendarEvent = event as unknown as CalendarEvent;
-		this.onEventContextMenu(syntheticEvent, calendarEvent);
+		// Pass the original task (with filePath and line) as CalendarEvent
+		this.onEventContextMenu(syntheticEvent, task as CalendarEvent);
 	}
 
 	private async handleTGEventDrop(
