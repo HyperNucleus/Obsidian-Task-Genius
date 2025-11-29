@@ -25,7 +25,7 @@ import { CanvasTaskUpdater } from "@/parsers/canvas-task-updater";
 import { rrulestr } from "rrule";
 import { EMOJI_TAG_REGEX, TOKEN_CONTEXT_REGEX } from "@/common/regex-define";
 import { BulkOperationResult } from "@/types/selection";
-import { formatDateSmart, isDateOnly } from "@/utils/date/date-utils";
+import { formatDateSmart } from "@/utils/date/date-utils";
 
 /**
  * Arguments for creating a task
@@ -904,6 +904,9 @@ export class WriteAPI {
 			updates.completed !== undefined &&
 			updates.completed !== originalTask.completed;
 		const hasMetadataUpdates = updates.metadata !== undefined;
+		const formatFrontmatterDate = (
+			value: number | string | Date | undefined | null,
+		): string => this.formatDateForWrite(value);
 
 		if (hasStatusUpdate || hasCompletedUpdate || hasMetadataUpdates) {
 			try {
@@ -953,11 +956,11 @@ export class WriteAPI {
 						if (metadata.dueDate !== undefined) {
 							const dueDateKey = getFrontmatterKey("dueDate");
 							if (metadata.dueDate) {
-								(fm as any)[dueDateKey] = new Date(
-									metadata.dueDate,
-								)
-									.toISOString()
-									.split("T")[0];
+								const formatted =
+									formatFrontmatterDate(metadata.dueDate);
+								if (formatted) {
+									(fm as any)[dueDateKey] = formatted;
+								}
 							} else {
 								delete (fm as any)[dueDateKey];
 							}
@@ -966,11 +969,11 @@ export class WriteAPI {
 						if (metadata.startDate !== undefined) {
 							const startDateKey = getFrontmatterKey("startDate");
 							if (metadata.startDate) {
-								(fm as any)[startDateKey] = new Date(
-									metadata.startDate,
-								)
-									.toISOString()
-									.split("T")[0];
+								const formatted =
+									formatFrontmatterDate(metadata.startDate);
+								if (formatted) {
+									(fm as any)[startDateKey] = formatted;
+								}
 							} else {
 								delete (fm as any)[startDateKey];
 							}
@@ -980,11 +983,12 @@ export class WriteAPI {
 							const scheduledDateKey =
 								getFrontmatterKey("scheduledDate");
 							if (metadata.scheduledDate) {
-								(fm as any)[scheduledDateKey] = new Date(
+								const formatted = formatFrontmatterDate(
 									metadata.scheduledDate,
-								)
-									.toISOString()
-									.split("T")[0];
+								);
+								if (formatted) {
+									(fm as any)[scheduledDateKey] = formatted;
+								}
 							} else {
 								delete (fm as any)[scheduledDateKey];
 							}
@@ -994,11 +998,12 @@ export class WriteAPI {
 							const completedDateKey =
 								getFrontmatterKey("completedDate");
 							if (metadata.completedDate) {
-								(fm as any)[completedDateKey] = new Date(
+								const formatted = formatFrontmatterDate(
 									metadata.completedDate,
-								)
-									.toISOString()
-									.split("T")[0];
+								);
+								if (formatted) {
+									(fm as any)[completedDateKey] = formatted;
+								}
 							} else {
 								delete (fm as any)[completedDateKey];
 							}
