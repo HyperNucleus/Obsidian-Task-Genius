@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 
 
+## [9.12.1](https://github.com/Quorafind/Obsidian-Task-Genius/compare/9.12.0...9.12.1) (2025-11-30)
+
+### Features
+
+* **time-parsing:** improve emoji-based date type detection and time preservation ([82a2020](https://github.com/Quorafind/Obsidian-Task-Genius/commit/82a2020))
+
+### Refactors
+
+* **calendar:** use built-in DateFnsAdapter from @taskgenius/calendar ([5fb5ff6](https://github.com/Quorafind/Obsidian-Task-Genius/commit/5fb5ff6))
+  - Remove redundant custom date adapter implementations in favor of the DateFnsAdapter exported directly from @taskgenius/calendar library.
+
 ## [9.12.0](https://github.com/Quorafind/Obsidian-Task-Genius/compare/9.11.0...9.12.0) (2025-11-29)
 
 ### Features
