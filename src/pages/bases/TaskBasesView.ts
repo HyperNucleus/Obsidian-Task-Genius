@@ -11,8 +11,10 @@ import {
 	MarkdownView,
 	Menu,
 	NumberValue,
+	parsePropertyId,
 	QueryController,
 	StringValue,
+	TFile,
 	ViewOption,
 } from "obsidian";
 import { Task } from "@/types/task";
@@ -303,38 +305,68 @@ export class TaskBasesView extends BasesView {
 
 	/**
 	 * Load property mappings from Bases configuration
-	 * Uses DEFAULT_FILE_TASK_MAPPING as the source for default values
+	 * Uses DEFAULT_FILE_TASK_MAPPING as the source for default values,
+	 * and applies fileSource.metadataMappings for custom property names
 	 */
 	private loadPropertyMappings(config: BasesViewConfig): void {
 		// Map from our Bases config keys to DEFAULT_FILE_TASK_MAPPING properties
 		// For Bases integration, we need to use 'note.xxx' format for properties
 		// unless it's a special property like file.basename
-		const defaults = {
-			taskContent: "file.basename", // Special case: use file name as content by default
-			taskStatus: `note.${DEFAULT_FILE_TASK_MAPPING.statusProperty}`,
-			taskPriority: `note.${DEFAULT_FILE_TASK_MAPPING.priorityProperty}`,
-			taskProject: `note.${DEFAULT_FILE_TASK_MAPPING.projectProperty}`,
-			taskTags: `note.${DEFAULT_FILE_TASK_MAPPING.tagsProperty}`,
-			taskDueDate: `note.${DEFAULT_FILE_TASK_MAPPING.dueDateProperty}`,
-			taskStartDate: `note.${DEFAULT_FILE_TASK_MAPPING.startDateProperty}`,
-			taskCompletedDate: `note.${DEFAULT_FILE_TASK_MAPPING.completedDateProperty}`,
-			taskContext: `note.${DEFAULT_FILE_TASK_MAPPING.contextProperty}`,
+		//
+		// Apply metadata mappings: if user has mapped a custom key (e.g., "ts_status")
+		// to a standard field (e.g., "status"), we need to use the custom key (ts_status)
+		// for reading from frontmatter
+		const getEffectivePropertyKey = (
+			standardKey: string | undefined,
+		): string => {
+			if (!standardKey) return "";
+			return this.getMappedFrontmatterKey(standardKey);
 		};
 
-		// Apply defaults if not already configured
-		// This ensures property mappings work even when user hasn't explicitly set them
-		for (const [key, defaultValue] of Object.entries(defaults)) {
+		// Build mapped property values - these use metadata mappings to determine
+		// the actual frontmatter keys to read from
+		const mappedProperties = {
+			taskContent: "file.basename", // Special case: use file name as content by default
+			taskStatus: `note.${getEffectivePropertyKey(DEFAULT_FILE_TASK_MAPPING.statusProperty)}`,
+			taskPriority: `note.${getEffectivePropertyKey(DEFAULT_FILE_TASK_MAPPING.priorityProperty)}`,
+			taskProject: `note.${getEffectivePropertyKey(DEFAULT_FILE_TASK_MAPPING.projectProperty)}`,
+			taskTags: `note.${getEffectivePropertyKey(DEFAULT_FILE_TASK_MAPPING.tagsProperty)}`,
+			taskDueDate: `note.${getEffectivePropertyKey(DEFAULT_FILE_TASK_MAPPING.dueDateProperty)}`,
+			taskStartDate: `note.${getEffectivePropertyKey(DEFAULT_FILE_TASK_MAPPING.startDateProperty)}`,
+			taskCompletedDate: `note.${getEffectivePropertyKey(DEFAULT_FILE_TASK_MAPPING.completedDateProperty)}`,
+			taskContext: `note.${getEffectivePropertyKey(DEFAULT_FILE_TASK_MAPPING.contextProperty)}`,
+		};
+
+		// Always apply mapped properties to ensure metadata mappings are respected
+		// This is important because:
+		// 1. User may have configured "note.status" in Bases view config
+		// 2. But their actual frontmatter uses "ts_status" (mapped via metadataMappings)
+		// 3. We need to read from "note.ts_status" to get the correct value
+		for (const [key, mappedValue] of Object.entries(mappedProperties)) {
 			const currentValue = config.get(key);
 			if (
 				currentValue === undefined ||
 				currentValue === null ||
 				currentValue === ""
 			) {
-				config.set(key, defaultValue);
+				// No value set - use mapped default
+				config.set(key, mappedValue);
+			} else if (
+				typeof currentValue === "string" &&
+				currentValue.startsWith("note.")
+			) {
+				// Value is set as note.xxx - check if we need to apply mapping
+				// Extract the property name from "note.xxx"
+				const propName = currentValue.substring(5); // Remove "note." prefix
+				const mappedPropName = this.getMappedFrontmatterKey(propName);
+				if (mappedPropName !== propName) {
+					// There's a mapping, apply it
+					config.set(key, `note.${mappedPropName}`);
+				}
 			}
 		}
 
-		// Now load property mappings - these should always have values due to defaults above
+		// Now load property mappings - these should have mapped values
 		this.taskContentProp = config.getAsPropertyId("taskContent");
 		this.taskStatusProp = config.getAsPropertyId("taskStatus");
 		this.taskPriorityProp = config.getAsPropertyId("taskPriority");
@@ -593,18 +625,18 @@ export class TaskBasesView extends BasesView {
 		// Determine if task is completed based on mapped symbol
 		const isCompleted = this.isCompletedStatus(statusSymbol);
 
-		return {
+		const content =
+			this.extractStringValue(entry, this.taskContentProp) ||
+			entry.file.basename;
+
+		const task: Task = {
 			id: `bases-${entry.file.path}-${index}`,
-			content:
-				this.extractStringValue(entry, this.taskContentProp) ||
-				entry.file.basename,
+			content,
 			completed: isCompleted,
 			status: statusSymbol,
 			line: 0, // Bases entries don't have line numbers
 			filePath: entry.file.path,
-			originalMarkdown:
-				this.extractStringValue(entry, this.taskContentProp) ||
-				entry.file.basename, // Not applicable for Bases entries
+			originalMarkdown: content, // Not applicable for Bases entries
 			metadata: {
 				priority: this.extractNumberValue(entry, this.taskPriorityProp),
 				project: this.extractStringValue(entry, this.taskProjectProp),
@@ -619,7 +651,70 @@ export class TaskBasesView extends BasesView {
 				children: [], // Bases entries don't have child tasks
 			},
 		};
+
+		// Debug: log task conversion for specific content
+		if (content.includes("逃避主义")) {
+			// Try to get all available values from the entry
+			const debugValues: Record<string, unknown> = {};
+			try {
+				// Try common status property names
+				const propsToTry = [
+					"note.status",
+					"note.Status",
+					"note.state",
+					"note.taskStatus",
+				];
+				for (const prop of propsToTry) {
+					try {
+						const val = entry.getValue(prop as any);
+						if (val) {
+							debugValues[prop] = val.toString();
+						}
+					} catch {
+						// ignore
+					}
+				}
+			} catch {
+				// ignore
+			}
+
+			console.log("[TaskBasesView] Debug task conversion:", {
+				content,
+				rawStatusValue,
+				statusSymbol,
+				isCompleted,
+				taskStatusProp: this.taskStatusProp,
+				statusMapping: this.plugin.settings.fileSource?.statusMapping,
+				metadataMappings:
+					this.plugin.settings.fileSource?.metadataMappings,
+				entryFile: entry.file.path,
+				debugValues,
+				task,
+			});
+		}
+
+		return task;
 	}
+
+	/**
+	 * Default status mappings from textual values to task symbols
+	 * Provides fallback mappings when user configuration doesn't specify a mapping
+	 * Matches FileSource.DEFAULT_STATUS_MAPPINGS
+	 */
+	private static readonly DEFAULT_STATUS_MAPPINGS: Record<string, string> = {
+		completed: "x",
+		done: "x",
+		finished: "x",
+		"in-progress": "/",
+		"in progress": "/",
+		doing: "/",
+		planned: "?",
+		todo: "?",
+		cancelled: "-",
+		canceled: "-",
+		"not-started": " ",
+		"not started": " ",
+	};
 
 	/**
 	 * Map a status value (metadata text or symbol) to a task status symbol
@@ -628,31 +723,37 @@ export class TaskBasesView extends BasesView {
 	private mapStatusToSymbol(statusValue: string): string {
 		const statusMapping = this.plugin.settings.fileSource?.statusMapping;
 
-		// If status mapping is disabled or not configured, return as-is
-		if (!statusMapping || !statusMapping.enabled) {
-			return statusValue;
-		}
-
 		// Handle case sensitivity
-		const lookupValue = statusMapping.caseSensitive
+		const caseSensitive = statusMapping?.caseSensitive ?? false;
+		const lookupValue = caseSensitive
 			? statusValue
 			: statusValue.toLowerCase();
 
 		// Check if it's already a recognized symbol
-		if (statusValue in statusMapping.symbolToMetadata) {
+		if (
+			statusMapping?.symbolToMetadata &&
+			statusValue in statusMapping.symbolToMetadata
+		) {
 			return statusValue;
 		}
 
-		// Try to map from metadata text to symbol
-		for (const [key, symbol] of Object.entries(
-			statusMapping.metadataToSymbol,
-		)) {
-			const compareKey = statusMapping.caseSensitive
-				? key
-				: key.toLowerCase();
-			if (compareKey === lookupValue) {
-				return symbol;
+		// Try to map from metadata text to symbol using user configuration
+		if (statusMapping?.enabled && statusMapping.metadataToSymbol) {
+			for (const [key, symbol] of Object.entries(
+				statusMapping.metadataToSymbol,
+			)) {
+				const compareKey = caseSensitive ? key : key.toLowerCase();
+				if (compareKey === lookupValue) {
+					return symbol;
+				}
 			}
+		}
+
+		// Fallback to common defaults to be robust (matches FileSource behavior)
+		const norm = String(statusValue).toLowerCase();
+		const defaultMapping = TaskBasesView.DEFAULT_STATUS_MAPPINGS[norm];
+		if (defaultMapping !== undefined) {
+			return defaultMapping;
 		}
 
 		// Return original value if no mapping found
@@ -671,6 +772,58 @@ export class TaskBasesView extends BasesView {
 			.map((m) => m.trim().toLowerCase());
 
 		return completedMarks.includes(statusSymbol.toLowerCase());
+	}
+
+	/**
+	 * Map a status symbol to metadata value for writing to frontmatter
+	 * This is the reverse of mapStatusToSymbol
+	 */
+	private mapSymbolToMetadata(statusSymbol: string): string {
+		const statusMapping = this.plugin.settings.fileSource?.statusMapping;
+
+		// If status mapping is disabled or not configured, return as-is
+		if (!statusMapping || !statusMapping.enabled) {
+			return statusSymbol;
+		}
+
+		// Use symbolToMetadata mapping if available
+		if (
+			statusMapping.symbolToMetadata &&
+			statusMapping.symbolToMetadata[statusSymbol]
+		) {
+			return statusMapping.symbolToMetadata[statusSymbol];
+		}
+
+		// Return original value if no mapping found
+		return statusSymbol;
+	}
+
+	/**
+	 * Helper to get the actual frontmatter key from BasesPropertyId
+	 * Only returns a key for "note" type properties
+	 */
+	private getFrontmatterKey(propId: BasesPropertyId | null): string | null {
+		if (!propId) return null;
+		const parsed = parsePropertyId(propId);
+		return parsed.type === "note" ? parsed.name : null;
+	}
+
+	/**
+	 * Helper to get the actual frontmatter key for writing, applying metadata mappings
+	 * This handles custom metadata mappings (e.g., "proj" -> "project")
+	 * Similar to WriteAPI.getFrontmatterKey for file-source tasks
+	 */
+	private getMappedFrontmatterKey(standardKey: string): string {
+		const fileSourceConfig = this.plugin.settings.fileSource;
+		const metadataMappings = fileSourceConfig?.metadataMappings || [];
+
+		// Find an enabled mapping where targetKey matches the standard key
+		const mapping = metadataMappings.find(
+			(m) => m.enabled && m.targetKey === standardKey && m.sourceKey,
+		);
+
+		// Return the source key if mapping exists, otherwise use standard key
+		return mapping ? mapping.sourceKey : standardKey;
 	}
 
 	/**
@@ -1491,8 +1644,59 @@ export class TaskBasesView extends BasesView {
 			}
 		}
 
-		// Update through plugin API if available
-		if (this.plugin.writeAPI) {
+		// Check if this is a Bases entry task (ID starts with "bases-")
+		if (task.id.startsWith("bases-") && this.data?.data) {
+			// Find the corresponding BasesEntry and update via processFrontMatter
+			const index = this.tasks.findIndex((t) => t.id === task.id);
+			if (index !== -1 && this.data.data[index]) {
+				const entry = this.data.data[index] as BasesEntry;
+				const file = this.app.vault.getAbstractFileByPath(
+					entry.file.path,
+				);
+				if (file && file instanceof TFile) {
+					await this.app.fileManager.processFrontMatter(
+						file,
+						(fm) => {
+							// Update the status property
+							// Property mapping already applied during loadPropertyMappings,
+							// so getFrontmatterKey returns the correct key directly
+							const statusKey = this.getFrontmatterKey(
+								this.taskStatusProp,
+							);
+							if (statusKey) {
+								// Map symbol to metadata value for writing
+								const statusValue = this.mapSymbolToMetadata(
+									updatedTask.status,
+								);
+								fm[statusKey] = statusValue;
+							}
+							// Update completed date if applicable
+							const completedDateKey = this.getFrontmatterKey(
+								this.taskCompletedDateProp,
+							);
+							if (completedDateKey) {
+								if (updatedTask.metadata?.completedDate) {
+									fm[completedDateKey] = new Date(
+										updatedTask.metadata.completedDate,
+									)
+										.toISOString()
+										.split("T")[0];
+								} else if (!updatedTask.completed) {
+									delete fm[completedDateKey];
+								}
+							}
+						},
+					);
+				}
+			}
+			// Update local state only (Bases will refresh via its own mechanism)
+			const localIndex = this.tasks.findIndex((t) => t.id === task.id);
+			if (localIndex !== -1) {
+				this.tasks[localIndex] = updatedTask;
+			}
+			return;
+		} else if (this.plugin.writeAPI) {
+			// Update through plugin API for regular tasks
 			const result = await this.plugin.writeAPI.updateTask({
 				taskId: updatedTask.id,
 				updates: updatedTask,
@@ -1524,8 +1728,196 @@ export class TaskBasesView extends BasesView {
 		originalTask: Task,
 		updatedTask: Task,
 	): Promise<Task> {
-		// Update through plugin API if available
-		if (this.plugin.writeAPI) {
+		// Check if this is a Bases entry task (ID starts with "bases-")
+		if (originalTask.id.startsWith("bases-") && this.data?.data) {
+			// Find the corresponding BasesEntry and update via processFrontMatter
+			const index = this.tasks.findIndex((t) => t.id === originalTask.id);
+			if (index !== -1 && this.data.data[index]) {
+				const entry = this.data.data[index] as BasesEntry;
+				const file = this.app.vault.getAbstractFileByPath(
+					entry.file.path,
+				);
+				if (file && file instanceof TFile) {
+					await this.app.fileManager.processFrontMatter(
+						file,
+						(fm) => {
+							// Property mappings already applied during loadPropertyMappings,
+							// so getFrontmatterKey returns the correct key directly
+
+							// Update content property
+							const contentKey = this.getFrontmatterKey(
+								this.taskContentProp,
+							);
+							if (
+								contentKey &&
+								updatedTask.content !== originalTask.content
+							) {
+								fm[contentKey] = updatedTask.content;
+							}
+
+							// Update status property
+							const statusKey = this.getFrontmatterKey(
+								this.taskStatusProp,
+							);
+							if (
+								statusKey &&
+								updatedTask.status !== originalTask.status
+							) {
+								fm[statusKey] = this.mapSymbolToMetadata(
+									updatedTask.status,
+								);
+							}
+
+							// Update priority property
+							const priorityKey = this.getFrontmatterKey(
+								this.taskPriorityProp,
+							);
+							if (
+								priorityKey &&
+								updatedTask.metadata?.priority !==
+									originalTask.metadata?.priority
+							) {
+								if (
+									updatedTask.metadata?.priority !== undefined
+								) {
+									fm[priorityKey] =
+										updatedTask.metadata.priority;
+								} else {
+									delete fm[priorityKey];
+								}
+							}
+
+							// Update project property
+							const projectKey = this.getFrontmatterKey(
+								this.taskProjectProp,
+							);
+							if (
+								projectKey &&
+								updatedTask.metadata?.project !==
+									originalTask.metadata?.project
+							) {
+								if (updatedTask.metadata?.project) {
+									fm[projectKey] =
+										updatedTask.metadata.project;
+								} else {
+									delete fm[projectKey];
+								}
+							}
+
+							// Update tags property
+							const tagsKey = this.getFrontmatterKey(
+								this.taskTagsProp,
+							);
+							if (
+								tagsKey &&
+								updatedTask.metadata?.tags !==
+									originalTask.metadata?.tags
+							) {
+								if (updatedTask.metadata?.tags?.length) {
+									fm[tagsKey] = updatedTask.metadata.tags;
+								} else {
+									delete fm[tagsKey];
+								}
+							}
+
+							// Update context property
+							const contextKey = this.getFrontmatterKey(
+								this.taskContextProp,
+							);
+							if (
+								contextKey &&
+								updatedTask.metadata?.context !==
+									originalTask.metadata?.context
+							) {
+								if (updatedTask.metadata?.context) {
+									fm[contextKey] =
+										updatedTask.metadata.context;
+								} else {
+									delete fm[contextKey];
+								}
+							}
+
+							// Update due date property
+							const dueDateKey = this.getFrontmatterKey(
+								this.taskDueDateProp,
+							);
+							if (
+								dueDateKey &&
+								updatedTask.metadata?.dueDate !==
+									originalTask.metadata?.dueDate
+							) {
+								if (updatedTask.metadata?.dueDate) {
+									fm[dueDateKey] = new Date(
+										updatedTask.metadata.dueDate,
+									)
+										.toISOString()
+										.split("T")[0];
+								} else {
+									delete fm[dueDateKey];
+								}
+							}
+
+							// Update start date property
+							const startDateKey = this.getFrontmatterKey(
+								this.taskStartDateProp,
+							);
+							if (
+								startDateKey &&
+								updatedTask.metadata?.startDate !==
+									originalTask.metadata?.startDate
+							) {
+								if (updatedTask.metadata?.startDate) {
+									fm[startDateKey] = new Date(
+										updatedTask.metadata.startDate,
+									)
+										.toISOString()
+										.split("T")[0];
+								} else {
+									delete fm[startDateKey];
+								}
+							}
+
+							// Update completed date property
+							const completedDateKey = this.getFrontmatterKey(
+								this.taskCompletedDateProp,
+							);
+							if (
+								completedDateKey &&
+								updatedTask.metadata?.completedDate !==
+									originalTask.metadata?.completedDate
+							) {
+								if (updatedTask.metadata?.completedDate) {
+									fm[completedDateKey] = new Date(
+										updatedTask.metadata.completedDate,
+									)
+										.toISOString()
+										.split("T")[0];
+								} else {
+									delete fm[completedDateKey];
+								}
+							}
+						},
+					);
+				}
+			}
+			// Update local state only (Bases will refresh via its own mechanism)
+			const localIndex = this.tasks.findIndex(
+				(t) => t.id === originalTask.id,
+			);
+			if (localIndex !== -1) {
+				this.tasks[localIndex] = updatedTask;
+			}
+			// Update details component if needed
+			if (this.currentSelectedTaskId === updatedTask.id) {
+				if (this.detailsComponent.isCurrentlyEditing()) {
+					this.detailsComponent.currentTask = updatedTask;
+				} else {
+					this.detailsComponent.showTaskDetails(updatedTask);
+				}
+			}
+			return updatedTask;
+		} else if (this.plugin.writeAPI) {
+			// Update through plugin API for regular tasks
 			const result = await this.plugin.writeAPI.updateTask({
 				taskId: originalTask.id,
 				updates: updatedTask,

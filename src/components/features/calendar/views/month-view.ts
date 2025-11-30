@@ -1,5 +1,8 @@
+/**
+ * @deprecated This file is deprecated. Use @taskgenius/calendar's DayView instead.
+ */
 import { App, Component, debounce, moment } from "obsidian";
-import { CalendarEvent } from '@/components/features/calendar/index';
+import { CalendarEvent } from "@/components/features/calendar/index";
 import { renderCalendarEvent } from "../rendering/event-renderer"; // Import the new renderer
 import {
 	CalendarSpecificConfig,
@@ -22,6 +25,7 @@ function parseDateString(dateStr: string): Date {
 }
 
 /**
+ * @deprecated This file is deprecated. Use @taskgenius/calendar's MonthView instead.
  * Renders the month view grid as a component.
  */
 export class MonthView extends CalendarViewComponent {
@@ -39,7 +43,7 @@ export class MonthView extends CalendarViewComponent {
 		currentDate: moment.Moment,
 		events: CalendarEvent[],
 		options: CalendarViewOptions, // Use the base options type
-		overrideConfig?: Partial<CalendarSpecificConfig>
+		overrideConfig?: Partial<CalendarSpecificConfig>,
 	) {
 		super(plugin, app, containerEl, events, options); // Call base constructor
 		this.app = app; // Still store app if needed directly
@@ -51,10 +55,14 @@ export class MonthView extends CalendarViewComponent {
 	render(): void {
 		// Get view settings, prefer override values when provided
 		const viewConfig = this.plugin.settings.viewConfiguration.find(
-			(v) => v.id === this.currentViewId
+			(v) => v.id === this.currentViewId,
 		)?.specificConfig as CalendarSpecificConfig;
-		const firstDayOfWeekSetting = this.overrideConfig?.firstDayOfWeek ?? viewConfig?.firstDayOfWeek;
-		const hideWeekends = (this.overrideConfig?.hideWeekends ?? viewConfig?.hideWeekends) ?? false;
+		const firstDayOfWeekSetting =
+			this.overrideConfig?.firstDayOfWeek ?? viewConfig?.firstDayOfWeek;
+		const hideWeekends =
+			this.overrideConfig?.hideWeekends ??
+			viewConfig?.hideWeekends ??
+			false;
 		// Default to Sunday (0) if the setting is undefined, following 0=Sun, 1=Mon, ..., 6=Sat
 		const effectiveFirstDay =
 			firstDayOfWeekSetting === undefined ? 0 : firstDayOfWeekSetting;
@@ -122,10 +130,10 @@ export class MonthView extends CalendarViewComponent {
 		// Filter out weekends if hideWeekends is enabled
 		const filteredWeekdays = hideWeekends
 			? rotatedWeekdays.filter((_, index) => {
-				// Calculate the actual day of week for this header position
-				const dayOfWeek = (effectiveFirstDay + index) % 7;
-				return dayOfWeek !== 0 && dayOfWeek !== 6; // Exclude Sunday (0) and Saturday (6)
-			})
+					// Calculate the actual day of week for this header position
+					const dayOfWeek = (effectiveFirstDay + index) % 7;
+					return dayOfWeek !== 0 && dayOfWeek !== 6; // Exclude Sunday (0) and Saturday (6)
+				})
 			: rotatedWeekdays;
 
 		filteredWeekdays.forEach((day) => {
@@ -139,7 +147,8 @@ export class MonthView extends CalendarViewComponent {
 		let currentDayIter = gridStart.clone();
 
 		while (currentDayIter.isSameOrBefore(gridEnd, "day")) {
-			const isWeekend = currentDayIter.day() === 0 || currentDayIter.day() === 6; // Sunday or Saturday
+			const isWeekend =
+				currentDayIter.day() === 0 || currentDayIter.day() === 6; // Sunday or Saturday
 
 			// Skip weekend days if hideWeekends is enabled
 			if (hideWeekends && isWeekend) {
@@ -205,7 +214,7 @@ export class MonthView extends CalendarViewComponent {
 				const targetCell = dayCells[dateStr];
 				if (targetCell) {
 					const eventsContainer = targetCell.querySelector(
-						".calendar-events-container"
+						".calendar-events-container",
 					);
 					if (eventsContainer) {
 						// Render the event using the existing renderer
@@ -237,10 +246,10 @@ export class MonthView extends CalendarViewComponent {
 
 			if (badgeEvents.length > 0) {
 				const headerEl = cell.querySelector(
-					".calendar-day-header"
+					".calendar-day-header",
 				) as HTMLElement;
 				const badgesContainer = headerEl.createDiv(
-					"calendar-badges-container"
+					"calendar-badges-container",
 				);
 				if (badgesContainer) {
 					badgeEvents.forEach((badgeEvent) => {
@@ -262,10 +271,10 @@ export class MonthView extends CalendarViewComponent {
 
 		console.log(
 			`Rendered Month View component from ${gridStart.format(
-				"YYYY-MM-DD"
+				"YYYY-MM-DD",
 			)} to ${gridEnd.format(
-				"YYYY-MM-DD"
-			)} (First day: ${effectiveFirstDay})`
+				"YYYY-MM-DD",
+			)} (First day: ${effectiveFirstDay})`,
 		);
 
 		this.registerDomEvent(gridContainer, "click", (ev) => {
@@ -345,7 +354,7 @@ export class MonthView extends CalendarViewComponent {
 		// Initialize sortable for each day's events container
 		Object.entries(dayCells).forEach(([dateStr, dayCell]) => {
 			const eventsContainer = dayCell.querySelector(
-				".calendar-events-container"
+				".calendar-events-container",
 			) as HTMLElement;
 			if (eventsContainer) {
 				const sortableInstance = Sortable.create(eventsContainer, {
@@ -367,7 +376,7 @@ export class MonthView extends CalendarViewComponent {
 	 */
 	private async handleDragEnd(
 		event: Sortable.SortableEvent,
-		originalDateStr: string
+		originalDateStr: string,
 	): Promise<void> {
 		const eventEl = event.item;
 		const eventId = eventEl.dataset.eventId;
@@ -376,7 +385,7 @@ export class MonthView extends CalendarViewComponent {
 
 		if (!eventId || !targetDateCell) {
 			console.warn(
-				"Could not determine event ID or target date for drag operation"
+				"Could not determine event ID or target date for drag operation",
 			);
 			return;
 		}
@@ -397,7 +406,7 @@ export class MonthView extends CalendarViewComponent {
 		try {
 			await this.updateTaskDate(calendarEvent, targetDateStr);
 			console.log(
-				`Task ${eventId} moved from ${originalDateStr} to ${targetDateStr}`
+				`Task ${eventId} moved from ${originalDateStr} to ${targetDateStr}`,
 			);
 		} catch (error) {
 			console.error("Failed to update task date:", error);
@@ -411,7 +420,7 @@ export class MonthView extends CalendarViewComponent {
 	 */
 	private async updateTaskDate(
 		calendarEvent: CalendarEvent,
-		targetDateStr: string
+		targetDateStr: string,
 	): Promise<void> {
 		// Use optimized date parsing for better performance
 		const targetDate = parseDateString(targetDateStr).getTime();
@@ -440,7 +449,7 @@ export class MonthView extends CalendarViewComponent {
 			taskId: calendarEvent.id,
 			updates: updatedTask,
 		});
-		
+
 		if (!result.success) {
 			throw new Error(`Failed to update task: ${result.error}`);
 		}

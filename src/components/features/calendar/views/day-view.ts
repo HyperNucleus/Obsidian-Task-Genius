@@ -1,9 +1,15 @@
+/**
+ * @deprecated This file is deprecated. Use @taskgenius/calendar's DayView instead.
+ */
 import { App, Component, moment } from "obsidian";
-import { CalendarEvent } from '@/components/features/calendar/index';
+import { CalendarEvent } from "@/components/features/calendar/index";
 import { renderCalendarEvent } from "../rendering/event-renderer";
 import { CalendarViewComponent, CalendarViewOptions } from "./base-view";
 import TaskProgressBarPlugin from "@/index";
 
+/**
+ * @deprecated Use @taskgenius/calendar's DayView instead.
+ */
 export class DayView extends CalendarViewComponent {
 	private currentDate: moment.Moment;
 	private app: App;
@@ -15,7 +21,7 @@ export class DayView extends CalendarViewComponent {
 		containerEl: HTMLElement,
 		currentDate: moment.Moment,
 		events: CalendarEvent[],
-		options: CalendarViewOptions = {}
+		options: CalendarViewOptions = {},
 	) {
 		super(plugin, app, containerEl, events, options);
 		this.app = app;
@@ -54,10 +60,10 @@ export class DayView extends CalendarViewComponent {
 
 		// 2. Render Timeline Section (Combined List)
 		const timelineSection = this.containerEl.createDiv(
-			"calendar-timeline-section" // Keep this class for general styling? Or rename?
+			"calendar-timeline-section", // Keep this class for general styling? Or rename?
 		);
 		const timelineEventsContainer = timelineSection.createDiv(
-			"calendar-timeline-events-container" // Renamed? maybe calendar-day-events-list
+			"calendar-timeline-events-container", // Renamed? maybe calendar-day-events-list
 		);
 
 		// 3. Render events in a simple list
