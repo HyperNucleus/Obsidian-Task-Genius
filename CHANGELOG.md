@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 
 
+## [9.12.2](https://github.com/Quorafind/Obsidian-Task-Genius/compare/9.12.1...9.12.2) (2025-11-30)
+
+### Features
+
+* **bases:** enhance metadata mapping and frontmatter updates ([2a7d245](https://github.com/Quorafind/Obsidian-Task-Genius/commit/2a7d245))
+  - Add comprehensive property mapping system with metadata mappings support
+
 ## [9.12.1](https://github.com/Quorafind/Obsidian-Task-Genius/compare/9.12.0...9.12.1) (2025-11-30)
 
 ### Features
