@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [9.12.3](https://github.com/Quorafind/Obsidian-Task-Genius/compare/9.12.2...9.12.3) (2025-12-01)
+
+### Features
+
+* **mcp:** add meta tools and field filtering for reduced token usage ([f997b18](https://github.com/Quorafind/Obsidian-Task-Genius/commit/f997b18))
+
 ## [9.12.2](https://github.com/Quorafind/Obsidian-Task-Genius/compare/9.12.1...9.12.2) (2025-11-30)
 
 ### Features
