@@ -1,4 +1,4 @@
-import { App, Component, setIcon } from "obsidian";
+import { App, Component, setIcon, Menu } from "obsidian";
 import { Task } from "@/types/task"; // Adjust path
 import { KanbanCardComponent } from "./kanban-card";
 import TaskProgressBarPlugin from "@/index"; // Adjust path
@@ -38,6 +38,7 @@ export class KanbanColumnComponent extends Component {
 				filterType: string,
 				value: string | number | string[],
 			) => void;
+			onColumnHide?: (columnTitle: string) => void;
 		},
 	) {
 		super();
@@ -87,6 +88,25 @@ export class KanbanColumnComponent extends Component {
 			cls: "tg-kanban-column-count",
 			text: `(${this.tasks.length})`,
 		});
+
+		// Add context menu for "Hide this column"
+		this.registerDomEvent(
+			this.headerEl,
+			"contextmenu",
+			(event: MouseEvent) => {
+				if (this.params.onColumnHide) {
+					const menu = new Menu();
+					menu.addItem((item) => {
+						item.setTitle(t("Hide this column"))
+							.setIcon("eye-off")
+							.onClick(() => {
+								this.params.onColumnHide?.(this.statusName);
+							});
+					});
+					menu.showAtMouseEvent(event);
+				}
+			},
+		);
 
 		// Column Content (Scrollable Area for Cards, and Drop Zone)
 		this.contentEl = this.element.createDiv({

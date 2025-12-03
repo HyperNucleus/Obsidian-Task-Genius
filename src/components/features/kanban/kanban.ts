@@ -602,6 +602,24 @@ export class KanbanComponent extends Component {
 		}
 	}
 
+	private handleColumnHide(title: string): void {
+		const viewConfig = this.plugin.settings.viewConfiguration.find(
+			(v) => v.id === this.currentViewId,
+		);
+		if (viewConfig && viewConfig.specificConfig?.viewType === "kanban") {
+			const kanbanConfig =
+				viewConfig.specificConfig as KanbanSpecificConfig;
+			if (!kanbanConfig.hiddenColumns) {
+				kanbanConfig.hiddenColumns = [];
+			}
+			if (!kanbanConfig.hiddenColumns.includes(title)) {
+				kanbanConfig.hiddenColumns.push(title);
+				this.plugin.saveSettings();
+				this.renderColumns();
+			}
+		}
+	}
+
 	private renderColumns() {
 		this.columnContainerEl?.empty();
 		this.columns.forEach((col) => this.removeChild(col));
@@ -696,7 +714,13 @@ export class KanbanComponent extends Component {
 		// Apply saved column order to status names
 		const statusColumns = statusNames.map((name) => ({ title: name }));
 		const orderedStatusColumns = this.applyColumnOrder(statusColumns);
-		const orderedStatusNames = orderedStatusColumns.map((col) => col.title);
+
+		// Filter hidden columns
+		const hiddenColumns =
+			this.getEffectiveKanbanConfig()?.hiddenColumns || [];
+		const orderedStatusNames = orderedStatusColumns
+			.map((col) => col.title)
+			.filter((title) => !hiddenColumns.includes(title));
 
 		orderedStatusNames.forEach((statusName) => {
 			const tasksForStatus = this.getTasksForStatus(statusName);
@@ -714,6 +738,7 @@ export class KanbanComponent extends Component {
 						newStatusMark: string,
 					) => this.handleStatusUpdate(taskId, newStatusMark),
 					onFilterApply: this.handleFilterApply,
+					onColumnHide: (title) => this.handleColumnHide(title),
 				},
 			);
 			this.addChild(column);
@@ -737,6 +762,7 @@ export class KanbanComponent extends Component {
 							newStatusMark: string,
 						) => this.handleStatusUpdate(taskId, newStatusMark),
 						onFilterApply: this.handleFilterApply,
+						onColumnHide: (title) => this.handleColumnHide(title),
 					},
 				);
 				this.addChild(otherColumn); // Must call addChild first to trigger onload()
@@ -790,7 +816,14 @@ export class KanbanComponent extends Component {
 		// Apply saved column order to column configurations
 		const orderedColumnConfigs = this.applyColumnOrder(columnConfigs);
 
+		// Filter hidden columns
+		const hiddenColumns =
+			this.getEffectiveKanbanConfig()?.hiddenColumns || [];
+
 		orderedColumnConfigs.forEach((config) => {
+			// Skip hidden columns
+			if (hiddenColumns.includes(config.title)) return;
+
 			const tasksForColumn = this.getTasksForProperty(
 				groupBy,
 				config.value,
@@ -812,6 +845,7 @@ export class KanbanComponent extends Component {
 							newValue,
 						),
 					onFilterApply: this.handleFilterApply,
+					onColumnHide: (title) => this.handleColumnHide(title),
 				},
 			);
 			this.addChild(column);

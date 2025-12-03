@@ -2374,6 +2374,13 @@ const translations = {
 	"kanban.allCycles": "所有周期",
 	"kanban.otherColumn": "其他",
 	"kanban.noCyclesAvailable": "无可用周期",
+
+	// Kanban Column Visibility
+	"Hide this column": "隐藏此列",
+	"Hidden Columns": "已隐藏的列",
+	"Columns that are currently hidden from view. Click the eye icon to show them again.":
+		"当前隐藏的列。点击眼睛图标可重新显示。",
+	"Unhide column": "显示列",
 };
 
 export default translations;

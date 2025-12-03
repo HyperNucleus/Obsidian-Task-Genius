@@ -175,9 +175,7 @@ export class ViewConfigModal extends Modal {
 		this.onSave = onSave;
 	}
 
-	private applyTwoColumnPresetIfNeeded(
-		sourceConfig?: ViewConfig,
-	): void {
+	private applyTwoColumnPresetIfNeeded(sourceConfig?: ViewConfig): void {
 		if (!this.isCopyMode) {
 			return;
 		}
@@ -196,8 +194,8 @@ export class ViewConfigModal extends Modal {
 
 		if (hasTwoColumnConfig) {
 			// Already a two column view; ensure task property aligns with preset if missing
-			const currentConfig =
-				this.viewConfig.specificConfig as TwoColumnSpecificConfig;
+			const currentConfig = this.viewConfig
+				.specificConfig as TwoColumnSpecificConfig;
 			if (!currentConfig.taskPropertyKey) {
 				currentConfig.taskPropertyKey = preset.taskPropertyKey;
 			}
@@ -216,10 +214,7 @@ export class ViewConfigModal extends Modal {
 		}
 
 		const identifier =
-			sourceIdentifier ??
-			sourceConfig?.id ??
-			sourceConfig?.name ??
-			null;
+			sourceIdentifier ?? sourceConfig?.id ?? sourceConfig?.name ?? null;
 
 		if (!identifier) {
 			return null;
@@ -281,9 +276,7 @@ export class ViewConfigModal extends Modal {
 			case "project":
 				multiSelectText = t("projects selected");
 				if (normalized.includes("review")) {
-					emptyStateText = t(
-						"Select a project to review its tasks.",
-					);
+					emptyStateText = t("Select a project to review its tasks.");
 					leftColumnTitle = t("Review Projects");
 				} else {
 					emptyStateText = t("Select a project to see related tasks");
@@ -333,7 +326,10 @@ export class ViewConfigModal extends Modal {
 		normalizedIdentifier: string,
 		sourceConfig?: ViewConfig,
 	): string {
-		if (propertyKey === "project" && normalizedIdentifier.includes("review")) {
+		if (
+			propertyKey === "project" &&
+			normalizedIdentifier.includes("review")
+		) {
 			return t("Review Projects");
 		}
 
@@ -832,6 +828,40 @@ export class ViewConfigModal extends Modal {
 							this.checkForChanges();
 						});
 				});
+
+			// Hidden Columns Management
+			const kanbanConfigForHidden = this.viewConfig
+				.specificConfig as KanbanSpecificConfig;
+			const hiddenColumns = kanbanConfigForHidden?.hiddenColumns || [];
+			if (hiddenColumns.length > 0) {
+				new Setting(contentEl)
+					.setName(t("Hidden Columns"))
+					.setDesc(
+						t(
+							"Columns that are currently hidden from view. Click the eye icon to show them again.",
+						),
+					)
+					.setHeading();
+
+				hiddenColumns.forEach((colTitle, index) => {
+					new Setting(contentEl)
+						.setName(colTitle)
+						.addButton((button) => {
+							button
+								.setIcon("eye")
+								.setTooltip(t("Unhide column"))
+								.onClick(() => {
+									const config = this.viewConfig
+										.specificConfig as KanbanSpecificConfig;
+									if (config.hiddenColumns) {
+										config.hiddenColumns.splice(index, 1);
+										this.checkForChanges();
+										this.display(); // Refresh to update list
+									}
+								});
+						});
+				});
+			}
 
 			// Custom columns configuration for non-status grouping
 			const kanbanConfig = this.viewConfig

@@ -2583,6 +2583,13 @@ const translations = {
 	"kanban.allCycles": "All Cycles",
 	"kanban.otherColumn": "Other",
 	"kanban.noCyclesAvailable": "No cycles available",
+
+	// Kanban Column Visibility
+	"Hide this column": "Hide this column",
+	"Hidden Columns": "Hidden Columns",
+	"Columns that are currently hidden from view. Click the eye icon to show them again.":
+		"Columns that are currently hidden from view. Click the eye icon to show them again.",
+	"Unhide column": "Unhide column",
 };
 
 export default translations;

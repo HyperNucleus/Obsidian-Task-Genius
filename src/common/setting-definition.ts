@@ -104,6 +104,7 @@ export interface KanbanSpecificConfig {
 		| "context"
 		| "filePath";
 	customColumns?: KanbanColumnConfig[]; // Custom column definitions when not using status
+	hiddenColumns?: string[]; // List of hidden column titles
 }
 
 export interface KanbanColumnConfig {
