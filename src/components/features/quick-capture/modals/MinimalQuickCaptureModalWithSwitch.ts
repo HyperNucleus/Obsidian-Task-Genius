@@ -37,7 +37,11 @@ export class MinimalQuickCaptureModal extends BaseQuickCaptureModal {
 	private targetFileEl: HTMLDivElement | null = null;
 	private editorContainer: HTMLElement | null = null;
 
-	constructor(app: App, plugin: TaskProgressBarPlugin, metadata?: TaskMetadata) {
+	constructor(
+		app: App,
+		plugin: TaskProgressBarPlugin,
+		metadata?: TaskMetadata,
+	) {
 		// Default to checkbox mode for task creation
 		super(app, plugin, "checkbox", metadata);
 
@@ -227,6 +231,10 @@ export class MinimalQuickCaptureModal extends BaseQuickCaptureModal {
 					value: resolvedPath,
 				},
 			});
+
+			// Initialize customFileName with resolved path so file-mode saves work
+			// even when user doesn't edit the input
+			this.taskMetadata.customFileName = resolvedPath;
 
 			// Update the customFileName when input changes
 			this.fileNameInput.addEventListener("input", () => {
@@ -660,9 +668,11 @@ export class MinimalQuickCaptureModal extends BaseQuickCaptureModal {
 
 		// Add tags (ensure they start with # but don't double-add)
 		if (this.taskMetadata.tags && this.taskMetadata.tags.length > 0) {
-			metadata.push(...this.taskMetadata.tags.map((tag) =>
-				tag.startsWith("#") ? tag : `#${tag}`
-			));
+			metadata.push(
+				...this.taskMetadata.tags.map((tag) =>
+					tag.startsWith("#") ? tag : `#${tag}`,
+				),
+			);
 		}
 
 		// Add metadata to content

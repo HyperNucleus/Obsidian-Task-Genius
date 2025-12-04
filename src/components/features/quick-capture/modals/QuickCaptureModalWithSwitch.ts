@@ -34,6 +34,7 @@ import {
 } from "./BaseQuickCaptureModal";
 import { FileNameInput } from "../components/FileNameInput";
 import { formatDate as formatDateSmart } from "@/utils/date/date-utils";
+import { processDateTemplates } from "@/utils/file/file-operations";
 
 const LAST_USED_MODE_KEY = "task-genius.lastUsedQuickCaptureMode";
 
@@ -294,6 +295,16 @@ export class QuickCaptureModal extends BaseQuickCaptureModal {
 				},
 			},
 		);
+
+		// Initialize customFileName with default value if not already set
+		// This ensures the file mode save logic works even when user doesn't modify the input
+		if (!this.taskMetadata.customFileName) {
+			const defaultTemplate =
+				this.plugin.settings.quickCapture.defaultFileNameTemplate ||
+				"{{DATE:YYYY-MM-DD}} - Task";
+			this.taskMetadata.customFileName =
+				processDateTemplates(defaultTemplate);
+		}
 
 		// Set initial value if exists
 		if (this.taskMetadata.customFileName) {
