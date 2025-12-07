@@ -19,6 +19,8 @@ import {
 } from "@/utils/date/date-utils";
 import { SuggestManager } from "@/components/ui/suggest";
 import { EmbeddableMarkdownEditor } from "@/editor-extensions/core/markdown-editor";
+import { extractMetadataFromFilter } from "../../task/filter/filter-metadata-extractor";
+import type { RootFilterState } from "../../task/filter/ViewTaskFilter";
 
 /**
  * Quick capture save strategy types
@@ -102,11 +104,39 @@ export abstract class BaseQuickCaptureModal extends Modal {
 		// Initialize suggest manager
 		this.suggestManager = new SuggestManager(app, plugin);
 
-		// Initialize metadata
+		// Initialize metadata with filter-based pre-filling
+		let finalMetadata: TaskMetadata = {};
+
+		// 1. Extract metadata from global filter state (if active)
+		const globalFilterState = this.app.loadLocalStorage(
+			"task-genius-view-filter",
+		) as RootFilterState | null;
+		if (globalFilterState) {
+			const extractedFilterMetadata =
+				extractMetadataFromFilter(globalFilterState);
+			finalMetadata = { ...extractedFilterMetadata };
+		}
+
+		// 2. Merge with incoming metadata (incoming has higher priority)
 		if (metadata) {
-			this.taskMetadata = this.normalizeMetadataDates(metadata);
+			const extractedTags = finalMetadata.tags || [];
+			const incomingTags = metadata.tags || [];
+
+			finalMetadata = { ...finalMetadata, ...metadata };
+
+			// Special handling for tags: merge and deduplicate
+			if (extractedTags.length > 0 || incomingTags.length > 0) {
+				finalMetadata.tags = [
+					...new Set([...extractedTags, ...incomingTags]),
+				];
+			}
+		}
+
+		// 3. Apply final metadata
+		if (Object.keys(finalMetadata).length > 0) {
+			this.taskMetadata = this.normalizeMetadataDates(finalMetadata);
 			// Auto-switch to file mode if location is file
-			if (metadata.location === "file") {
+			if (finalMetadata.location === "file") {
 				this.currentMode = "file";
 			}
 		}
