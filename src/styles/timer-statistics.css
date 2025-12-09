@@ -1,0 +1,335 @@
+/* Timer Statistics Panel Styles */
+
+.timer-statistics-panel {
+	--timer-card-bg: var(--background-secondary);
+	--timer-running-color: var(--color-green);
+	--timer-paused-color: var(--color-orange);
+	--timer-stopped-color: var(--color-red);
+	padding: var(--size-4-4);
+	overflow-y: auto;
+	height: 100%;
+}
+
+.timer-stats-header {
+	margin-bottom: var(--size-4-4);
+}
+
+.timer-stats-title {
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	margin: 0;
+}
+
+/* Summary Cards */
+.timer-stats-summary {
+	margin-bottom: var(--size-4-6);
+}
+
+.timer-stats-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+	gap: var(--size-4-3);
+}
+
+.timer-stats-card {
+	background: var(--timer-card-bg);
+	border-radius: var(--radius-m);
+	padding: var(--size-4-4);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.timer-stats-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.timer-stats-card-icon {
+	color: var(--text-muted);
+	margin-bottom: var(--size-4-2);
+}
+
+.timer-stats-card.running .timer-stats-card-icon {
+	color: var(--timer-running-color);
+}
+
+.timer-stats-card.paused .timer-stats-card-icon {
+	color: var(--timer-paused-color);
+}
+
+.timer-stats-card-value {
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	margin-bottom: var(--size-4-1);
+}
+
+.timer-stats-card-label {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+/* Sections */
+.timer-stats-section {
+	margin-bottom: var(--size-4-6);
+}
+
+.timer-stats-section h3 {
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	margin: 0 0 var(--size-4-3) 0;
+	padding-bottom: var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.timer-stats-empty {
+	color: var(--text-muted);
+	font-style: italic;
+	padding: var(--size-4-4);
+	text-align: center;
+	background: var(--background-secondary);
+	border-radius: var(--radius-m);
+}
+
+/* Timer Groups */
+.timer-group {
+	margin-bottom: var(--size-4-4);
+}
+
+.timer-group-title {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin-bottom: var(--size-4-2);
+}
+
+.timer-group-running .timer-group-title {
+	color: var(--timer-running-color);
+}
+
+.timer-group-paused .timer-group-title {
+	color: var(--timer-paused-color);
+}
+
+/* Timer Items */
+.timer-group-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+
+.timer-item {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-3);
+	padding: var(--size-4-3);
+	background: var(--background-secondary);
+	border-radius: var(--radius-m);
+	transition: background-color 0.15s ease;
+}
+
+.timer-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.timer-item-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.timer-item-name {
+	font-weight: var(--font-medium);
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.timer-item-path {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.timer-item-duration {
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	min-width: 80px;
+	text-align: right;
+}
+
+.timer-item-status {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+}
+
+.timer-status-running {
+	color: var(--timer-running-color);
+}
+
+.timer-status-paused {
+	color: var(--timer-paused-color);
+}
+
+/* Timer Actions */
+.timer-item-actions {
+	display: flex;
+	gap: var(--size-4-1);
+}
+
+button.timer-action-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	background: transparent;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	color: var(--text-muted);
+	transition: all 0.15s ease;
+
+	box-shadow: unset;
+}
+
+button.timer-action-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+	border-color: var(--text-muted);
+}
+
+.timer-action-stop:hover {
+	background: var(--background-modifier-error);
+	color: var(--text-on-accent);
+	border-color: transparent;
+}
+
+/* Task Timer List */
+.timer-stats-task-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+
+.timer-task-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--size-4-3);
+	background: var(--background-secondary);
+	border-radius: var(--radius-m);
+}
+
+.timer-task-content {
+	flex: 1;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: var(--text-normal);
+}
+
+.timer-task-timer {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	margin-left: var(--size-4-3);
+}
+
+.timer-task-duration {
+	font-family: var(--font-monospace);
+	font-weight: var(--font-medium);
+	color: var(--text-normal);
+}
+
+.timer-task-status {
+	font-size: var(--font-ui-smaller);
+}
+
+.timer-task-status.timer-status-running {
+	color: var(--timer-running-color);
+}
+
+.timer-task-status.timer-status-paused {
+	color: var(--timer-paused-color);
+}
+
+/* Task Timer Meta Stopped State */
+.task-timer-stopped {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+/* Completed Timers */
+.timer-completed-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+
+.timer-completed-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--size-4-3);
+	background: var(--background-secondary);
+	border-radius: var(--radius-m);
+	gap: var(--size-4-3);
+}
+
+.timer-completed-info {
+	flex: 1;
+	min-width: 0;
+}
+
+.timer-completed-name {
+	font-weight: var(--font-medium);
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.timer-completed-path {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.timer-completed-meta {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: var(--size-2-2);
+	min-width: 160px;
+}
+
+.timer-completed-duration {
+	font-family: var(--font-monospace);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+.timer-completed-time {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	text-align: right;
+}

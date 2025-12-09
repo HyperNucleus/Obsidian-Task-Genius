@@ -93,7 +93,7 @@ export class TaskTimerExporter {
 			activeTimers: activeTimers.map((timer) => ({
 				...timer,
 				currentDuration: this.timerManager.getCurrentDuration(
-					timer.taskId,
+					timer.taskId
 				),
 			})),
 		};
@@ -114,19 +114,35 @@ export class TaskTimerExporter {
 				return false;
 			}
 
+			// Get current active list or create empty array
+			const activeListKey = "taskTimer_activeList";
+			const existingListRaw = (window as any).app.loadLocalStorage(
+				activeListKey
+			);
+			let activeList: string[] = [];
+			try {
+				activeList = existingListRaw ? JSON.parse(existingListRaw) : [];
+			} catch {
+				activeList = [];
+			}
+
 			// Restore each timer
 			for (const timerData of backup.activeTimers) {
 				// Recreate timer state in localStorage
-				// Convert old format to new segments format
-				const segments = [];
-				if (timerData.startTime) {
+				// Handle both old format and new segments format
+				let segments = [];
+				if (timerData.segments && Array.isArray(timerData.segments)) {
+					// New format - use segments directly
+					segments = timerData.segments;
+				} else if (timerData.startTime) {
+					// Convert old format to new segments format
 					segments.push({
 						startTime: timerData.startTime,
 						endTime: timerData.pausedTime,
 						duration: timerData.pausedTime
 							? timerData.pausedTime -
-								timerData.startTime -
-								(timerData.totalPausedDuration || 0)
+							  timerData.startTime -
+							  (timerData.totalPausedDuration || 0)
 							: undefined,
 					});
 				}
@@ -145,12 +161,27 @@ export class TaskTimerExporter {
 						timerData.totalPausedDuration || 0,
 				};
 
+				// Save timer to storage
 				(window as any).app.saveLocalStorage(
 					timerData.taskId,
-					JSON.stringify(restoredTimer),
+					JSON.stringify(restoredTimer)
 				);
+
+				// Add to active list if not already present
+				if (!activeList.includes(timerData.taskId)) {
+					activeList.push(timerData.taskId);
+				}
 			}
 
+			// Save updated active list
+			(window as any).app.saveLocalStorage(
+				activeListKey,
+				JSON.stringify(activeList)
+			);
+
+			console.log(
+				`Restored ${backup.activeTimers.length} timers from backup`
+			);
 			return true;
 		} catch (error) {
 			console.error("Error restoring from backup:", error);
@@ -218,7 +249,7 @@ export class TaskTimerExporter {
 			}
 
 			const currentDuration = this.timerManager.getCurrentDuration(
-				timer.taskId,
+				timer.taskId
 			);
 
 			// Get the first and last segments for export
@@ -260,20 +291,77 @@ export class TaskTimerExporter {
 			return false;
 		}
 
+		// Get current active list or create empty array
+		const activeListKey = "taskTimer_activeList";
+		const existingListRaw = (window as any).app.loadLocalStorage(
+			activeListKey
+		);
+		let activeList: string[] = [];
+		try {
+			activeList = existingListRaw ? JSON.parse(existingListRaw) : [];
+		} catch {
+			activeList = [];
+		}
+
 		let importedCount = 0;
+		let activeCount = 0;
 
 		for (const timerData of data.timers) {
 			try {
-				// Only import completed timers to avoid conflicts
-				if (timerData.status === "idle" || timerData.endTime) {
-					// Store as historical data (could be extended for analytics)
+				// Import all timers, not just completed ones
+				if (
+					timerData.status === "running" ||
+					timerData.status === "paused"
+				) {
+					// Convert to TimerState format and restore as active timer
+					const segments = [];
+					if (timerData.startTime) {
+						segments.push({
+							startTime: timerData.startTime,
+							endTime: timerData.endTime,
+							duration: timerData.endTime
+								? timerData.endTime -
+								  timerData.startTime -
+								  (timerData.totalPausedDuration || 0)
+								: undefined,
+						});
+					}
+
+					const restoredTimer: TimerState = {
+						taskId: timerData.taskId,
+						filePath: timerData.filePath,
+						blockId: timerData.blockId,
+						segments: segments,
+						status: timerData.status as "running" | "paused",
+						createdAt: timerData.createdAt || Date.now(),
+						legacyStartTime: timerData.startTime,
+						legacyPausedTime: timerData.endTime,
+						legacyTotalPausedDuration:
+							timerData.totalPausedDuration || 0,
+					};
+
+					// Save timer to storage
+					(window as any).app.saveLocalStorage(
+						timerData.taskId,
+						JSON.stringify(restoredTimer)
+					);
+
+					// Add to active list if not already present
+					if (!activeList.includes(timerData.taskId)) {
+						activeList.push(timerData.taskId);
+					}
+
+					activeCount++;
+					importedCount++;
+				} else if (timerData.status === "idle" || timerData.endTime) {
+					// Store completed timers as historical data
 					const historyKey = `taskTimer_history_${timerData.blockId}_${timerData.startTime}`;
 					(window as any).app.saveLocalStorage(
 						historyKey,
 						JSON.stringify({
 							...timerData,
 							importedAt: Date.now(),
-						}),
+						})
 					);
 					importedCount++;
 				}
@@ -281,12 +369,20 @@ export class TaskTimerExporter {
 				console.warn(
 					"Failed to import timer:",
 					timerData.taskId,
-					error,
+					error
 				);
 			}
 		}
 
-		console.log(`Successfully imported ${importedCount} timer records`);
+		// Save updated active list
+		(window as any).app.saveLocalStorage(
+			activeListKey,
+			JSON.stringify(activeList)
+		);
+
+		console.log(
+			`Successfully imported ${importedCount} timer records (${activeCount} active)`
+		);
 		return importedCount > 0;
 	}
 
@@ -331,7 +427,10 @@ export class TaskTimerExporter {
 
 		if (Array.isArray(obj)) {
 			for (const item of obj) {
-				yaml += `${spaces}- ${this.convertToYAML(item, indent + 1).trim()}\n`;
+				yaml += `${spaces}- ${this.convertToYAML(
+					item,
+					indent + 1
+				).trim()}\n`;
 			}
 		} else if (obj !== null && typeof obj === "object") {
 			for (const [key, value] of Object.entries(obj)) {

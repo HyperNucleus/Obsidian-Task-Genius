@@ -4,8 +4,19 @@ import {
 	EditorView,
 	WidgetType,
 } from "@codemirror/view";
-import { EditorState, Range, StateField, Transaction, Facet } from "@codemirror/state";
-import { MetadataCache, editorInfoField, editorEditorField, MarkdownView } from "obsidian";
+import {
+	EditorState,
+	Range,
+	StateField,
+	Transaction,
+	Facet,
+} from "@codemirror/state";
+import {
+	MetadataCache,
+	editorInfoField,
+	editorEditorField,
+	MarkdownView,
+} from "obsidian";
 import type TaskProgressBarPlugin from "../../index";
 import { TaskTimerSettings } from "../../common/setting-definition";
 import { TaskTimerMetadataDetector } from "@/services/timer-metadata-service";
@@ -23,7 +34,7 @@ interface TaskTimerConfig {
 
 // Define a Facet to pass configuration to the StateField
 const taskTimerConfigFacet = Facet.define<TaskTimerConfig, TaskTimerConfig>({
-	combine: (values) => values[0] || null
+	combine: (values) => values[0] || null,
 });
 
 /**
@@ -58,14 +69,24 @@ class TaskTimerWidget extends WidgetType {
 		const currentStatus = this.getTaskStatus(line.text);
 
 		// Force widget recreation if task status has changed
-		if (this.currentTaskStatus && this.currentTaskStatus !== currentStatus) {
-			console.log("[TaskTimer] Task status changed from", this.currentTaskStatus, "to", currentStatus);
+		if (
+			this.currentTaskStatus &&
+			this.currentTaskStatus !== currentStatus
+		) {
+			console.log(
+				"[TaskTimer] Task status changed from",
+				this.currentTaskStatus,
+				"to",
+				currentStatus
+			);
 			return false;
 		}
 
 		// Force widget recreation if task becomes completed
-		if (currentStatus === 'completed') {
-			console.log("[TaskTimer] Task is completed, forcing widget removal");
+		if (currentStatus === "completed") {
+			console.log(
+				"[TaskTimer] Task is completed, forcing widget removal"
+			);
 			return false;
 		}
 
@@ -84,14 +105,21 @@ class TaskTimerWidget extends WidgetType {
 		}
 
 		// Create a simple text-based widget
-		this.dom = createDiv({cls: 'task-timer-widget'});
+		this.dom = createDiv({ cls: "task-timer-widget" });
 
 		// Get and store current task status
 		const line = this.state.doc.lineAt(this.lineFrom);
 		this.currentTaskStatus = this.getTaskStatus(line.text);
 
 		// Add debug info
-		console.log("[TaskTimer] Creating widget for line", this.lineFrom, "status:", this.currentTaskStatus, "blockId:", this.existingBlockId);
+		console.log(
+			"[TaskTimer] Creating widget for line",
+			this.lineFrom,
+			"status:",
+			this.currentTaskStatus,
+			"blockId:",
+			this.existingBlockId
+		);
 
 		// Load timer state if we have a block ID
 		if (this.existingBlockId) {
@@ -107,10 +135,12 @@ class TaskTimerWidget extends WidgetType {
 	/**
 	 * Get task status from line text
 	 */
-	private getTaskStatus(lineText: string): 'pending' | 'in-progress' | 'completed' | 'cancelled' {
+	private getTaskStatus(
+		lineText: string
+	): "pending" | "in-progress" | "completed" | "cancelled" {
 		// Extract the task marker
 		const match = lineText.match(/\[([^\]]+)\]/);
-		if (!match) return 'pending';
+		if (!match) return "pending";
 
 		const marker = match[1];
 		const statuses = this.plugin?.settings?.taskStatuses || {
@@ -118,21 +148,24 @@ class TaskTimerWidget extends WidgetType {
 			inProgress: ">|/",
 			abandoned: "-",
 			planned: "?",
-			notStarted: " "
+			notStarted: " ",
 		};
 
 		// Check against configured markers
-		if (statuses.completed.split('|').includes(marker)) {
-			return 'completed';
-		} else if (statuses.inProgress.split('|').includes(marker)) {
-			return 'in-progress';
-		} else if (statuses.abandoned.split('|').includes(marker)) {
-			return 'cancelled';
-		} else if (statuses.notStarted.split('|').includes(marker) || marker === ' ') {
-			return 'pending';
+		if (statuses.completed.split("|").includes(marker)) {
+			return "completed";
+		} else if (statuses.inProgress.split("|").includes(marker)) {
+			return "in-progress";
+		} else if (statuses.abandoned.split("|").includes(marker)) {
+			return "cancelled";
+		} else if (
+			statuses.notStarted.split("|").includes(marker) ||
+			marker === " "
+		) {
+			return "pending";
 		} else {
 			// Default to pending for unknown markers
-			return 'pending';
+			return "pending";
 		}
 	}
 
@@ -148,91 +181,112 @@ class TaskTimerWidget extends WidgetType {
 		const line = this.state.doc.lineAt(this.lineFrom);
 		const taskStatus = this.getTaskStatus(line.text);
 		this.currentTaskStatus = taskStatus; // Update stored status
-		console.log("[TaskTimer] createContent - current task status:", taskStatus);
+		console.log(
+			"[TaskTimer] createContent - current task status:",
+			taskStatus
+		);
 
 		// Don't show timer for completed tasks
-		if (taskStatus === 'completed') {
+		if (taskStatus === "completed") {
 			return;
 		}
 
 		// If we have a block ID and a timer state, show the timer regardless of task marker
-		if (this.existingBlockId && this.timerState && this.timerState.status !== 'idle') {
-			console.log("[TaskTimer] Found active timer for task with block ID");
+		if (
+			this.existingBlockId &&
+			this.timerState &&
+			this.timerState.status !== "idle"
+		) {
+			console.log(
+				"[TaskTimer] Found active timer for task with block ID"
+			);
 			// Show timer based on existing state
 			// Get total duration from timer manager
 			const taskId = this.getTaskId();
-			const elapsedMs = taskId ? this.timerManager.getCurrentDuration(taskId) : 0;
+			const elapsedMs = taskId
+				? this.timerManager.getCurrentDuration(taskId)
+				: 0;
 
-			const formattedTime = TaskTimerFormatter.formatDuration(elapsedMs, this.settings.timeFormat);
+			const formattedTime = TaskTimerFormatter.formatDuration(
+				elapsedMs,
+				this.settings.timeFormat
+			);
 			const timeSpan = this.dom.createSpan();
 
 			// Show paused state clearly
-			if (this.timerState.status === 'paused') {
+			if (this.timerState.status === "paused") {
 				timeSpan.setText(`⏸ ${formattedTime} (Paused) `);
 			} else {
 				timeSpan.setText(`⏱ ${formattedTime} `);
 			}
 
 			// Add action links based on timer state
-			if (this.timerState.status === 'running') {
-				this.addActionLink('Pause', () => this.pauseTimer());
-				this.dom.appendText(' | ');
-				this.addActionLink('Complete', () => this.completeTimer());
+			if (this.timerState.status === "running") {
+				this.addActionLink("Pause", () => this.pauseTimer());
+				this.dom.appendText(" | ");
+				this.addActionLink("Complete", () => this.completeTimer());
 				// Start real-time updates
 				this.startRealtimeUpdates();
-			} else if (this.timerState.status === 'paused') {
-				this.addActionLink('Resume', () => this.resumeTimer());
-				this.dom.appendText(' | ');
-				this.addActionLink('Complete', () => this.completeTimer());
+			} else if (this.timerState.status === "paused") {
+				this.addActionLink("Resume", () => this.resumeTimer());
+				this.dom.appendText(" | ");
+				this.addActionLink("Complete", () => this.completeTimer());
 			}
-			this.dom.appendText(' | ');
-			this.addActionLink('Reset', () => this.resetTimer());
+			this.dom.appendText(" | ");
+			this.addActionLink("Reset", () => this.resetTimer());
 			return;
 		}
 
 		// For in-progress tasks with existing block IDs
-		if (taskStatus === 'in-progress' && this.existingBlockId) {
+		if (taskStatus === "in-progress" && this.existingBlockId) {
 			// If there's an existing timer state, use it
-			if (this.timerState && this.timerState.status !== 'idle') {
+			if (this.timerState && this.timerState.status !== "idle") {
 				// Show existing timer state
 				// Get total duration from timer manager
 				const taskId = this.getTaskId();
-				const elapsedMs = taskId ? this.timerManager.getCurrentDuration(taskId) : 0;
+				const elapsedMs = taskId
+					? this.timerManager.getCurrentDuration(taskId)
+					: 0;
 
-				const formattedTime = TaskTimerFormatter.formatDuration(elapsedMs, this.settings.timeFormat);
+				const formattedTime = TaskTimerFormatter.formatDuration(
+					elapsedMs,
+					this.settings.timeFormat
+				);
 				const timeSpan = this.dom.createSpan();
 
 				// Show paused state clearly
-				if (this.timerState.status === 'paused') {
+				if (this.timerState.status === "paused") {
 					timeSpan.setText(`⏸ ${formattedTime} (Paused) `);
 				} else {
 					timeSpan.setText(`⏱ ${formattedTime} `);
 				}
 
 				// Add action links based on timer state
-				if (this.timerState.status === 'running') {
-					this.addActionLink('Pause', () => this.pauseTimer());
-					this.dom.appendText(' | ');
-					this.addActionLink('Complete', () => this.completeTimer());
-				} else if (this.timerState.status === 'paused') {
-					this.addActionLink('Resume', () => this.resumeTimer());
-					this.dom.appendText(' | ');
-					this.addActionLink('Complete', () => this.completeTimer());
+				if (this.timerState.status === "running") {
+					this.addActionLink("Pause", () => this.pauseTimer());
+					this.dom.appendText(" | ");
+					this.addActionLink("Complete", () => this.completeTimer());
+				} else if (this.timerState.status === "paused") {
+					this.addActionLink("Resume", () => this.resumeTimer());
+					this.dom.appendText(" | ");
+					this.addActionLink("Complete", () => this.completeTimer());
 				}
-				this.dom.appendText(' | ');
-				this.addActionLink('Reset', () => this.resetTimer());
+				this.dom.appendText(" | ");
+				this.addActionLink("Reset", () => this.resetTimer());
 			} else {
 				// Task is in-progress with block ID but no timer state - auto-start timer
-				console.log("[TaskTimer] In-progress task with block ID but no timer state, auto-starting");
+				console.log(
+					"[TaskTimer] In-progress task with block ID but no timer state, auto-starting"
+				);
 				this.startTimer();
 				// Timer will be shown after state update
 				return;
 			}
-		} else if (!this.timerState || this.timerState.status === 'idle') {
+		} else if (!this.timerState || this.timerState.status === "idle") {
 			// Create text-style start button
-			const startSpan = this.dom.createSpan({cls: 'task-timer-start'});
-			startSpan.setText('Start Task');
-			startSpan.addEventListener('click', (e) => {
+			const startSpan = this.dom.createSpan({ cls: "task-timer-start" });
+			startSpan.setText("Start Task");
+			startSpan.addEventListener("click", (e) => {
 				e.preventDefault();
 				e.stopPropagation();
 				console.log("[TaskTimer] Start button clicked");
@@ -242,30 +296,35 @@ class TaskTimerWidget extends WidgetType {
 			// Show elapsed time
 			// Get total duration from timer manager
 			const taskId = this.getTaskId();
-			const elapsedMs = taskId ? this.timerManager.getCurrentDuration(taskId) : 0;
+			const elapsedMs = taskId
+				? this.timerManager.getCurrentDuration(taskId)
+				: 0;
 
-			const formattedTime = TaskTimerFormatter.formatDuration(elapsedMs, this.settings.timeFormat);
+			const formattedTime = TaskTimerFormatter.formatDuration(
+				elapsedMs,
+				this.settings.timeFormat
+			);
 			const timeSpan = this.dom.createSpan();
 
 			// Show paused state clearly
-			if (this.timerState.status === 'paused') {
+			if (this.timerState.status === "paused") {
 				timeSpan.setText(`⏸ ${formattedTime} (Paused) `);
 			} else {
 				timeSpan.setText(`⏱ ${formattedTime} `);
 			}
 
 			// Add action links
-			if (this.timerState.status === 'running') {
-				this.addActionLink('Pause', () => this.pauseTimer());
-				this.dom.appendText(' | ');
-				this.addActionLink('Complete', () => this.completeTimer());
-			} else if (this.timerState.status === 'paused') {
-				this.addActionLink('Resume', () => this.resumeTimer());
-				this.dom.appendText(' | ');
-				this.addActionLink('Complete', () => this.completeTimer());
+			if (this.timerState.status === "running") {
+				this.addActionLink("Pause", () => this.pauseTimer());
+				this.dom.appendText(" | ");
+				this.addActionLink("Complete", () => this.completeTimer());
+			} else if (this.timerState.status === "paused") {
+				this.addActionLink("Resume", () => this.resumeTimer());
+				this.dom.appendText(" | ");
+				this.addActionLink("Complete", () => this.completeTimer());
 			}
-			this.dom.appendText(' | ');
-			this.addActionLink('Reset', () => this.resetTimer());
+			this.dom.appendText(" | ");
+			this.addActionLink("Reset", () => this.resetTimer());
 		}
 	}
 
@@ -275,9 +334,9 @@ class TaskTimerWidget extends WidgetType {
 	private addActionLink(text: string, action: () => void): void {
 		if (!this.dom) return;
 
-		const link = this.dom.createSpan({cls: 'task-timer-action'});
+		const link = this.dom.createSpan({ cls: "task-timer-action" });
 		link.setText(text);
-		link.addEventListener('click', (e) => {
+		link.addEventListener("click", (e) => {
 			e.preventDefault();
 			e.stopPropagation();
 			action();
@@ -297,17 +356,22 @@ class TaskTimerWidget extends WidgetType {
 
 		// Try from the plugin's app workspace
 		if (this.plugin?.app) {
-			const activeView = this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
+			const activeView =
+				this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
 			if (activeView?.editor) {
 				const editor = activeView.editor;
 				// For CM6 editor
 				if ((editor as any).cm) {
-					console.log("[TaskTimer] Got EditorView from activeView.editor.cm");
+					console.log(
+						"[TaskTimer] Got EditorView from activeView.editor.cm"
+					);
 					return (editor as any).cm;
 				}
 				// Some versions might have it as cm6
 				if ((editor as any).cm6) {
-					console.log("[TaskTimer] Got EditorView from activeView.editor.cm6");
+					console.log(
+						"[TaskTimer] Got EditorView from activeView.editor.cm6"
+					);
 					return (editor as any).cm6;
 				}
 			}
@@ -332,9 +396,9 @@ class TaskTimerWidget extends WidgetType {
 
 		// Try to find the view through the widget's DOM element
 		if (this.dom && this.dom.parentElement) {
-			const cmContent = this.dom.closest('.cm-content');
+			const cmContent = this.dom.closest(".cm-content");
 			if (cmContent) {
-				const cmEditor = cmContent.closest('.cm-editor');
+				const cmEditor = cmContent.closest(".cm-editor");
 				if (cmEditor && (cmEditor as any).cmView) {
 					console.log("[TaskTimer] Got EditorView from DOM element");
 					return (cmEditor as any).cmView.view;
@@ -342,7 +406,9 @@ class TaskTimerWidget extends WidgetType {
 			}
 		}
 
-		console.error("[TaskTimer] Could not find EditorView through any method");
+		console.error(
+			"[TaskTimer] Could not find EditorView through any method"
+		);
 		return null;
 	}
 
@@ -379,7 +445,8 @@ class TaskTimerWidget extends WidgetType {
 		const view = this.getEditorView();
 		if (!view) {
 			// Fallback to Obsidian API if no CodeMirror view
-			const activeView = this.plugin?.app?.workspace?.getActiveViewOfType(MarkdownView);
+			const activeView =
+				this.plugin?.app?.workspace?.getActiveViewOfType(MarkdownView);
 			if (!activeView?.editor || !activeView.file) {
 				return false;
 			}
@@ -400,9 +467,9 @@ class TaskTimerWidget extends WidgetType {
 			changes: {
 				from: line.from,
 				to: line.to,
-				insert: updatedText
+				insert: updatedText,
 			},
-			annotations: taskStatusChangeAnnotation.of("taskTimer")
+			annotations: taskStatusChangeAnnotation.of("taskTimer"),
 		});
 
 		return true;
@@ -417,7 +484,9 @@ class TaskTimerWidget extends WidgetType {
 
 			// If no existing block ID, generate one and insert it
 			if (!taskId) {
-				const blockId = this.timerManager.generateBlockId(this.settings.blockRefPrefix);
+				const blockId = this.timerManager.generateBlockId(
+					this.settings.blockRefPrefix
+				);
 
 				// Get EditorView using our helper method
 				const view = this.getEditorView();
@@ -429,11 +498,14 @@ class TaskTimerWidget extends WidgetType {
 					const blockRef = ` ^${blockId}`;
 
 					// Also update task status to in-progress
-					const inProgressMarkers = (this.plugin?.settings?.taskStatuses?.inProgress || ">|/").split('|');
-					const inProgressMarker = inProgressMarkers[0] || '/';
-					const updatedText = lineText
-						.replace(/\[([^\]]+)\]/, `[${inProgressMarker}]`)
-						.trimEnd() + blockRef;
+					const inProgressMarkers = (
+						this.plugin?.settings?.taskStatuses?.inProgress || ">|/"
+					).split("|");
+					const inProgressMarker = inProgressMarkers[0] || "/";
+					const updatedText =
+						lineText
+							.replace(/\[([^\]]+)\]/, `[${inProgressMarker}]`)
+							.trimEnd() + blockRef;
 
 					console.log(`[TaskTimer] Updating line ${line.number}`);
 					console.log("[TaskTimer] Original text:", lineText);
@@ -445,24 +517,31 @@ class TaskTimerWidget extends WidgetType {
 							changes: {
 								from: line.from,
 								to: line.to,
-								insert: updatedText
+								insert: updatedText,
 							},
-							annotations: taskStatusChangeAnnotation.of("taskTimer")
+							annotations:
+								taskStatusChangeAnnotation.of("taskTimer"),
 						});
 
 						// Update our local reference
 						this.existingBlockId = blockId;
-						taskId = `${this.filePath}#^${blockId}`;
 
 						// Start the timer after inserting block ID
-						console.log(`[TaskTimer] Starting timer for newly created task: ${taskId}`);
+						console.log(
+							`[TaskTimer] Starting timer for newly created task with blockId: ${blockId}`
+						);
 						this.timerManager.startTimer(this.filePath, blockId);
 						this.startRealtimeUpdates();
 						this.updateTimerState();
 
 						// Decorations will refresh automatically after text change
+						// Return early - timer is already started, no need to continue
+						return;
 					} catch (err) {
-						console.error("[TaskTimer] Error dispatching change:", err);
+						console.error(
+							"[TaskTimer] Error dispatching change:",
+							err
+						);
 						return;
 					}
 				} else {
@@ -476,29 +555,46 @@ class TaskTimerWidget extends WidgetType {
 						const lineText = line.text;
 
 						// Also update task status to in-progress
-						const inProgressMarkers = (this.plugin?.settings?.taskStatuses?.inProgress || ">|/").split('|');
-						const inProgressMarker = inProgressMarkers[0] || '/';
-						const updatedText = lineText
-							.replace(/\[([^\]]+)\]/, `[${inProgressMarker}]`)
-							.trimEnd() + ` ^${blockId}`;
+						const inProgressMarkers = (
+							this.plugin?.settings?.taskStatuses?.inProgress ||
+							">|/"
+						).split("|");
+						const inProgressMarker = inProgressMarkers[0] || "/";
+						const updatedText =
+							lineText
+								.replace(
+									/\[([^\]]+)\]/,
+									`[${inProgressMarker}]`
+								)
+								.trimEnd() + ` ^${blockId}`;
 
 						try {
-							editorInfo.editor.replaceRange(updatedText,
-								{line: line.number - 1, ch: 0},
-								{line: line.number - 1, ch: lineText.length}
+							editorInfo.editor.replaceRange(
+								updatedText,
+								{ line: line.number - 1, ch: 0 },
+								{ line: line.number - 1, ch: lineText.length }
 							);
 
 							this.existingBlockId = blockId;
-							taskId = `${this.filePath}#^${blockId}`;
 
 							// Start timer for the fallback path as well
-							console.log(`[TaskTimer] Starting timer for newly created task (fallback): ${taskId}`);
-							this.timerManager.startTimer(this.filePath, blockId);
+							console.log(
+								`[TaskTimer] Starting timer for newly created task (fallback) with blockId: ${blockId}`
+							);
+							this.timerManager.startTimer(
+								this.filePath,
+								blockId
+							);
 							this.startRealtimeUpdates();
 							this.updateTimerState();
 							this.refreshUI();
+							// Return early - timer is already started
+							return;
 						} catch (err) {
-							console.error("[TaskTimer] Fallback also failed:", err);
+							console.error(
+								"[TaskTimer] Fallback also failed:",
+								err
+							);
 							return;
 						}
 					}
@@ -514,15 +610,22 @@ class TaskTimerWidget extends WidgetType {
 
 				// Keep status update for start timer - it makes sense to mark as in-progress
 				// This is different from pause/resume where status doesn't necessarily reflect timer state
-				if (currentStatus !== 'in-progress') {
-					const inProgressMarkers = (this.plugin?.settings?.taskStatuses?.inProgress || ">|/").split('|');
-					const inProgressMarker = inProgressMarkers[0] || '/';
+				if (currentStatus !== "in-progress") {
+					const inProgressMarkers = (
+						this.plugin?.settings?.taskStatuses?.inProgress || ">|/"
+					).split("|");
+					const inProgressMarker = inProgressMarkers[0] || "/";
 					this.updateTaskStatus(`[${inProgressMarker}]`);
 				}
 
 				// Start or resume the timer
-				console.log(`[TaskTimer] Starting/resuming timer for task: ${taskId}`);
-				this.timerManager.startTimer(this.filePath, this.existingBlockId);
+				console.log(
+					`[TaskTimer] Starting/resuming timer for task: ${taskId}`
+				);
+				this.timerManager.startTimer(
+					this.filePath,
+					this.existingBlockId
+				);
 				this.updateTimerState();
 				this.refreshUI(); // This will start real-time updates if needed
 				console.log("[TaskTimer] Timer started successfully");
@@ -541,14 +644,16 @@ class TaskTimerWidget extends WidgetType {
 			// First check if the task is completed - should not pause completed tasks
 			const line = this.state.doc.lineAt(this.lineFrom);
 			const currentStatus = this.getTaskStatus(line.text);
-			if (currentStatus === 'completed') {
+			if (currentStatus === "completed") {
 				console.warn("[TaskTimer] Cannot pause a completed task");
 				return;
 			}
 
 			const taskId = this.getTaskId();
 			if (!taskId) {
-				console.warn("[TaskTimer] Cannot pause timer - no task ID found");
+				console.warn(
+					"[TaskTimer] Cannot pause timer - no task ID found"
+				);
 				return;
 			}
 
@@ -558,7 +663,9 @@ class TaskTimerWidget extends WidgetType {
 			// DON'T update task status - just pause the timer
 			// The timer state is stored in localStorage and will persist
 			// This avoids conflicts with autoDateManager and other plugins
-			console.log("[TaskTimer] Timer paused without changing task status");
+			console.log(
+				"[TaskTimer] Timer paused without changing task status"
+			);
 
 			// Stop updates immediately
 			this.stopRealtimeUpdates();
@@ -579,14 +686,16 @@ class TaskTimerWidget extends WidgetType {
 			// First check if the task is completed - should not resume completed tasks
 			const line = this.state.doc.lineAt(this.lineFrom);
 			const currentStatus = this.getTaskStatus(line.text);
-			if (currentStatus === 'completed') {
+			if (currentStatus === "completed") {
 				console.warn("[TaskTimer] Cannot resume a completed task");
 				return;
 			}
 
 			const taskId = this.getTaskId();
 			if (!taskId) {
-				console.warn("[TaskTimer] Cannot resume timer - no task ID found");
+				console.warn(
+					"[TaskTimer] Cannot resume timer - no task ID found"
+				);
 				return;
 			}
 
@@ -595,7 +704,9 @@ class TaskTimerWidget extends WidgetType {
 
 			// DON'T update task status - just resume the timer
 			// The user can manually change status if needed
-			console.log("[TaskTimer] Timer resumed without changing task status");
+			console.log(
+				"[TaskTimer] Timer resumed without changing task status"
+			);
 
 			this.startRealtimeUpdates();
 			this.updateTimerState();
@@ -615,7 +726,9 @@ class TaskTimerWidget extends WidgetType {
 		try {
 			const taskId = this.getTaskId();
 			if (!taskId) {
-				console.warn("[TaskTimer] Cannot reset timer - no task ID found");
+				console.warn(
+					"[TaskTimer] Cannot reset timer - no task ID found"
+				);
 				return;
 			}
 
@@ -644,14 +757,16 @@ class TaskTimerWidget extends WidgetType {
 			// First check if the task is already completed
 			const line = this.state.doc.lineAt(this.lineFrom);
 			const currentStatus = this.getTaskStatus(line.text);
-			if (currentStatus === 'completed') {
+			if (currentStatus === "completed") {
 				console.warn("[TaskTimer] Task is already completed");
 				return;
 			}
 
 			const taskId = this.getTaskId();
 			if (!taskId) {
-				console.warn("[TaskTimer] Cannot complete timer - no task ID found");
+				console.warn(
+					"[TaskTimer] Cannot complete timer - no task ID found"
+				);
 				return;
 			}
 
@@ -660,7 +775,10 @@ class TaskTimerWidget extends WidgetType {
 			// Get the timer state before completing
 			const timerState = this.timerManager.getTimerState(taskId);
 			if (!timerState) {
-				console.warn("[TaskTimer] No timer state found for task:", taskId);
+				console.warn(
+					"[TaskTimer] No timer state found for task:",
+					taskId
+				);
 				return;
 			}
 
@@ -675,25 +793,43 @@ class TaskTimerWidget extends WidgetType {
 				const lineText = line.text;
 
 				// Create the updated text using configured completed marker
-				const completedMarkers = (this.plugin?.settings?.taskStatuses?.completed || "x|X").split('|');
-				const completedMarker = completedMarkers[0] || 'x';
+				const completedMarkers = (
+					this.plugin?.settings?.taskStatuses?.completed || "x|X"
+				).split("|");
+				const completedMarker = completedMarkers[0] || "x";
 
 				// First update the task status
-				let updatedText = lineText.replace(/\[([^\]]+)\]/, `[${completedMarker}]`);
+				let updatedText = lineText.replace(
+					/\[([^\]]+)\]/,
+					`[${completedMarker}]`
+				);
 
 				// Check for block reference ID at the end
 				const blockRefMatch = updatedText.match(/\s*\^[\w-]+\s*$/);
 				if (blockRefMatch) {
 					// Insert duration before the block reference ID
-					const insertPosition = updatedText.length - blockRefMatch[0].length;
-					updatedText = updatedText.slice(0, insertPosition) + ` (${formattedDuration})` + updatedText.slice(insertPosition);
+					const insertPosition =
+						updatedText.length - blockRefMatch[0].length;
+					updatedText =
+						updatedText.slice(0, insertPosition) +
+						` (${formattedDuration})` +
+						updatedText.slice(insertPosition);
 				} else {
 					// No block reference, add duration at the end
-					updatedText = updatedText.replace(/\s*$/, ` (${formattedDuration})`);
+					updatedText = updatedText.replace(
+						/\s*$/,
+						` (${formattedDuration})`
+					);
 				}
 
-				console.log("[TaskTimer] Completing task - original:", lineText);
-				console.log("[TaskTimer] Completing task - updated:", updatedText);
+				console.log(
+					"[TaskTimer] Completing task - original:",
+					lineText
+				);
+				console.log(
+					"[TaskTimer] Completing task - updated:",
+					updatedText
+				);
 
 				try {
 					// Use dispatch to replace the entire line
@@ -701,17 +837,18 @@ class TaskTimerWidget extends WidgetType {
 						changes: {
 							from: line.from,
 							to: line.to,
-							insert: updatedText
-						}
+							insert: updatedText,
+						},
 					});
 				} catch (err) {
 					console.error("[TaskTimer] Error updating task:", err);
 					// Try fallback
 					const editorInfo = this.state.field(editorInfoField);
 					if (editorInfo?.editor) {
-						editorInfo.editor.replaceRange(updatedText,
-							{line: line.number - 1, ch: 0},
-							{line: line.number - 1, ch: lineText.length}
+						editorInfo.editor.replaceRange(
+							updatedText,
+							{ line: line.number - 1, ch: 0 },
+							{ line: line.number - 1, ch: lineText.length }
 						);
 					}
 				}
@@ -722,7 +859,9 @@ class TaskTimerWidget extends WidgetType {
 
 			this.stopRealtimeUpdates();
 			this.updateTimerState();
-			console.log(`[TaskTimer] Timer completed successfully: ${formattedDuration}`);
+			console.log(
+				`[TaskTimer] Timer completed successfully: ${formattedDuration}`
+			);
 		} catch (error) {
 			console.error("[TaskTimer] Error completing timer:", error);
 			this.updateTimerState();
@@ -740,9 +879,15 @@ class TaskTimerWidget extends WidgetType {
 		if (taskId) {
 			this.timerState = this.timerManager.getTimerState(taskId);
 			if (this.timerState) {
-				console.log("[TaskTimer] Loaded timer state for", this.filePath, this.existingBlockId, ":", this.timerState);
+				console.log(
+					"[TaskTimer] Loaded timer state for",
+					this.filePath,
+					this.existingBlockId,
+					":",
+					this.timerState
+				);
 				// If timer is running, start real-time updates immediately
-				if (this.timerState.status === 'running') {
+				if (this.timerState.status === "running") {
 					this.startRealtimeUpdates();
 				}
 			}
@@ -825,12 +970,20 @@ const taskTimerStateField = StateField.define<DecorationSet>({
 	create(state: EditorState): DecorationSet {
 		return createTaskTimerDecorations(state);
 	},
-	update(decorations: DecorationSet, transaction: Transaction): DecorationSet {
+	update(
+		decorations: DecorationSet,
+		transaction: Transaction
+	): DecorationSet {
 		// Check if this is an undo/redo operation
-		const isUndoRedo = transaction.isUserEvent("undo") || transaction.isUserEvent("redo");
+		const isUndoRedo =
+			transaction.isUserEvent("undo") || transaction.isUserEvent("redo");
 
 		// Recreate decorations on doc changes, state effects, or undo/redo
-		if (transaction.docChanged || transaction.effects.length > 0 || isUndoRedo) {
+		if (
+			transaction.docChanged ||
+			transaction.effects.length > 0 ||
+			isUndoRedo
+		) {
 			// Monitor all task status changes, not just undo/redo
 			if (transaction.docChanged) {
 				handleTaskStatusChange(transaction);
@@ -839,7 +992,8 @@ const taskTimerStateField = StateField.define<DecorationSet>({
 		}
 		return decorations;
 	},
-	provide: (field: StateField<DecorationSet>) => EditorView.decorations.from(field)
+	provide: (field: StateField<DecorationSet>) =>
+		EditorView.decorations.from(field),
 });
 
 /**
@@ -893,7 +1047,7 @@ function createTaskTimerDecorations(state: EditorState): DecorationSet {
 	for (let i = 1; i <= doc.lines; i++) {
 		const line = doc.line(i);
 		const lineText = line.text;
-		
+
 		// Check if this line contains a task
 		if (isTaskLine(lineText)) {
 			const currentIndent = lineText.match(/^(\s*)/)?.[1].length || 0;
@@ -920,32 +1074,43 @@ function createTaskTimerDecorations(state: EditorState): DecorationSet {
 
 			if (isFirstLevel) {
 				// Check task status - only skip completed tasks without existing timers
-				const taskStatusMatch = lineText.match(/^\s*[-*+]\s+\[([^\]]+)\]/);
+				const taskStatusMatch = lineText.match(
+					/^\s*[-*+]\s+\[([^\]]+)\]/
+				);
 				if (taskStatusMatch) {
 					const statusChar = taskStatusMatch[1];
-					const taskStatuses = timerConfig?.plugin?.settings?.taskStatuses || {
+					const taskStatuses = timerConfig?.plugin?.settings
+						?.taskStatuses || {
 						completed: "x|X",
-						abandoned: "-"
+						abandoned: "-",
 					};
 
 					// Skip completed tasks only
-					const completedMarkers = taskStatuses.completed.split('|');
+					const completedMarkers = taskStatuses.completed.split("|");
 
 					if (completedMarkers.includes(statusChar)) {
-						console.log("[TaskTimer] Skipping completed task at line", i);
+						console.log(
+							"[TaskTimer] Skipping completed task at line",
+							i
+						);
 						continue;
 					}
 
 					// For abandoned tasks, check if they have an existing block ID with timer data
-					const abandonedMarkers = taskStatuses.abandoned.split('|');
+					const abandonedMarkers = taskStatuses.abandoned.split("|");
 					if (abandonedMarkers.includes(statusChar)) {
 						const blockId = extractBlockRef(lineText);
 						if (!blockId) {
-							console.log("[TaskTimer] Skipping abandoned task without block ID at line", i);
+							console.log(
+								"[TaskTimer] Skipping abandoned task without block ID at line",
+								i
+							);
 							continue;
 						}
 						// If abandoned task has a block ID, let it continue to show timer
-						console.log("[TaskTimer] Abandoned task with block ID found, checking for timer state");
+						console.log(
+							"[TaskTimer] Abandoned task with block ID found, checking for timer state"
+						);
 					}
 				}
 
@@ -966,12 +1131,15 @@ function createTaskTimerDecorations(state: EditorState): DecorationSet {
 						existingBlockId
 					),
 					side: -1, // Place before the line
-					block: true // This is now allowed in StateField
+					block: true, // This is now allowed in StateField
 				});
 
 				// Add decoration at the start of the line (this will appear above the task)
 				decorations.push(timerDeco.range(line.from));
-				console.log("[TaskTimer] Added timer decoration for first-level task at line:", i);
+				console.log(
+					"[TaskTimer] Added timer decoration for first-level task at line:",
+					i
+				);
 			}
 		}
 	}
@@ -987,7 +1155,6 @@ function isTaskLine(lineText: string): boolean {
 	// Match any character inside square brackets
 	return /^\s*[-*+]\s+\[[^\]]*\]/.test(lineText);
 }
-
 
 function extractBlockRef(lineText: string): string | undefined {
 	// Match block reference anywhere in the line, not just at the end
@@ -1020,102 +1187,125 @@ function handleTaskStatusChange(transaction: Transaction): void {
 	const doc = transaction.state.doc;
 
 	// Check each changed line for task status changes
-	transaction.changes.iterChangedRanges((fromA: number, toA: number, fromB: number, toB: number) => {
-		const startLine = doc.lineAt(fromB).number;
-		const endLine = doc.lineAt(toB).number;
+	transaction.changes.iterChangedRanges(
+		(fromA: number, toA: number, fromB: number, toB: number) => {
+			const startLine = doc.lineAt(fromB).number;
+			const endLine = doc.lineAt(toB).number;
 
-		for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
-			if (lineNum > doc.lines) continue;
+			for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+				if (lineNum > doc.lines) continue;
 
-			const line = doc.line(lineNum);
-			const lineText = line.text;
+				const line = doc.line(lineNum);
+				const lineText = line.text;
 
-			// Check if this is a task line
-			if (!isTaskLine(lineText)) continue;
+				// Check if this is a task line
+				if (!isTaskLine(lineText)) continue;
 
-			// Extract block reference
-			const blockId = extractBlockRef(lineText);
-			if (!blockId) continue;
+				// Extract block reference
+				const blockId = extractBlockRef(lineText);
+				if (!blockId) continue;
 
-			// Check task status
-			const statusMatch = lineText.match(/^\s*[-*+]\s+\[([^\]]+)\]/);
-			if (!statusMatch) continue;
+				// Check task status
+				const statusMatch = lineText.match(/^\s*[-*+]\s+\[([^\]]+)\]/);
+				if (!statusMatch) continue;
 
-			const statusChar = statusMatch[1];
-			const taskStatuses = timerConfig?.plugin?.settings?.taskStatuses || {
-				completed: "x|X",
-				inProgress: ">|/",
-				abandoned: "-",
-				notStarted: " "
-			};
+				const statusChar = statusMatch[1];
+				const taskStatuses = timerConfig?.plugin?.settings
+					?.taskStatuses || {
+					completed: "x|X",
+					inProgress: ">|/",
+					abandoned: "-",
+					notStarted: " ",
+				};
 
-			// Determine what to do based on the new status
-			const inProgressMarkers = taskStatuses.inProgress.split('|');
-			const abandonedMarkers = taskStatuses.abandoned.split('|');
-			const completedMarkers = taskStatuses.completed.split('|');
-			const notStartedMarkers = taskStatuses.notStarted.split('|');
+				// Determine what to do based on the new status
+				const inProgressMarkers = taskStatuses.inProgress.split("|");
+				const abandonedMarkers = taskStatuses.abandoned.split("|");
+				const completedMarkers = taskStatuses.completed.split("|");
+				const notStartedMarkers = taskStatuses.notStarted.split("|");
 
-			const taskId = `taskTimer_${file.path}#${blockId}`;
-			const existingTimer = timerManager.getTimerState(taskId);
+				const taskId = `taskTimer_${file.path}#${blockId}`;
+				const existingTimer = timerManager.getTimerState(taskId);
 
-			console.log(`[TaskTimer] Status change detected: "${statusChar}" for task ${taskId}`);
-			console.log(`[TaskTimer] Existing timer:`, existingTimer);
+				console.log(
+					`[TaskTimer] Status change detected: "${statusChar}" for task ${taskId}`
+				);
+				console.log(`[TaskTimer] Existing timer:`, existingTimer);
 
-			if (inProgressMarkers.includes(statusChar)) {
-				// Task is now in progress
-				if (!existingTimer || existingTimer.status === 'idle') {
-					console.log("[TaskTimer] Status -> In Progress: Starting new timer");
-					timerManager.startTimer(file.path, blockId);
-				} else if (existingTimer.status === 'paused') {
-					console.log("[TaskTimer] Status -> In Progress: Resuming paused timer");
-					timerManager.resumeTimer(taskId);
-				} else if (existingTimer.status === 'running') {
-					console.log("[TaskTimer] Status -> In Progress: Timer already running");
-				}
-			} else if (abandonedMarkers.includes(statusChar)) {
-				// Task is now abandoned - pause timer if running
-				if (existingTimer && existingTimer.status === 'running') {
-					console.log("[TaskTimer] Status -> Abandoned: Pausing running timer");
-					timerManager.pauseTimer(taskId);
-				} else if (existingTimer && existingTimer.status === 'paused') {
-					console.log("[TaskTimer] Status -> Abandoned: Timer already paused");
-				}
-			} else if (completedMarkers.includes(statusChar)) {
-				// Task is completed - stop and save timer
-				if (existingTimer && (existingTimer.status === 'running' || existingTimer.status === 'paused')) {
-					console.log("[TaskTimer] Status -> Completed: Stopping timer and saving time");
-					// Stop timer but preserve the elapsed time
-					timerManager.pauseTimer(taskId);
-				}
-			} else if (notStartedMarkers.includes(statusChar)) {
-				// Task is reset to not started - reset timer
-				if (existingTimer) {
-					console.log("[TaskTimer] Status -> Not Started: Resetting timer");
-					timerManager.resetTimer(taskId);
+				if (inProgressMarkers.includes(statusChar)) {
+					// Task is now in progress
+					if (!existingTimer || existingTimer.status === "idle") {
+						console.log(
+							"[TaskTimer] Status -> In Progress: Starting new timer"
+						);
+						timerManager.startTimer(file.path, blockId);
+					} else if (existingTimer.status === "paused") {
+						console.log(
+							"[TaskTimer] Status -> In Progress: Resuming paused timer"
+						);
+						timerManager.resumeTimer(taskId);
+					} else if (existingTimer.status === "running") {
+						console.log(
+							"[TaskTimer] Status -> In Progress: Timer already running"
+						);
+					}
+				} else if (abandonedMarkers.includes(statusChar)) {
+					// Task is now abandoned - pause timer if running
+					if (existingTimer && existingTimer.status === "running") {
+						console.log(
+							"[TaskTimer] Status -> Abandoned: Pausing running timer"
+						);
+						timerManager.pauseTimer(taskId);
+					} else if (
+						existingTimer &&
+						existingTimer.status === "paused"
+					) {
+						console.log(
+							"[TaskTimer] Status -> Abandoned: Timer already paused"
+						);
+					}
+				} else if (completedMarkers.includes(statusChar)) {
+					// Task is completed - finalize timer and record duration
+					if (
+						existingTimer &&
+						(existingTimer.status === "running" ||
+							existingTimer.status === "paused")
+					) {
+						console.log(
+							"[TaskTimer] Status -> Completed: Finalizing timer and recording duration"
+						);
+						// Complete the timer - this calculates final duration and removes from active list
+						const duration = timerManager.completeTimer(taskId);
+						console.log(
+							`[TaskTimer] Timer completed with duration: ${duration}`
+						);
+					}
+				} else if (notStartedMarkers.includes(statusChar)) {
+					// Task is reset to not started - reset timer
+					if (existingTimer) {
+						console.log(
+							"[TaskTimer] Status -> Not Started: Resetting timer"
+						);
+						timerManager.resetTimer(taskId);
+					}
 				}
 			}
 		}
-	});
+	);
 }
-
 
 /**
  * Main task timer extension function
  * Creates a StateField-based extension for proper block decorations
  */
-export function taskTimerExtension(
-	plugin: TaskProgressBarPlugin
-) {
+export function taskTimerExtension(plugin: TaskProgressBarPlugin) {
 	// Create configuration object
 	const config: TaskTimerConfig = {
 		settings: plugin.settings.taskTimer,
 		metadataCache: plugin.app.metadataCache,
-		plugin
+		plugin,
 	};
 
 	// Return both the facet configuration and the state field
-	return [
-		taskTimerConfigFacet.of(config),
-		taskTimerStateField
-	];
+	return [taskTimerConfigFacet.of(config), taskTimerStateField];
 }

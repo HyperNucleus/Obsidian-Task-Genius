@@ -12,6 +12,7 @@ import { MarkdownRendererComponent } from "@/components/ui/renderers/MarkdownRen
 
 import "@/styles/task-status-indicator.css";
 import { createTaskCheckbox } from "./details";
+import { TaskTimerManager } from "@/managers/timer-manager";
 import { getRelativeTimeString } from "@/utils/date/date-formatter";
 import { t } from "@/translations/helper";
 import TaskProgressBarPlugin from "@/index";
@@ -45,6 +46,10 @@ export class TaskListItemComponent extends Component {
 
 	private settings: TaskProgressBarSettings;
 
+	// Timer update interval (managed by registerInterval, auto-cleaned on unload)
+	private timerEl: HTMLElement | null = null;
+	private hasActiveTimerInterval: boolean = false;
+
 	// Use shared editor manager instead of individual editors
 	private static editorManager: InlineEditorManager | null = null;
 
@@ -65,7 +70,7 @@ export class TaskListItemComponent extends Component {
 		private viewMode: string,
 		private app: App,
 		private plugin: TaskProgressBarPlugin,
-		selectionManager?: TaskSelectionManager,
+		selectionManager?: TaskSelectionManager
 	) {
 		super();
 
@@ -83,7 +88,7 @@ export class TaskListItemComponent extends Component {
 		if (!TaskListItemComponent.editorManager) {
 			TaskListItemComponent.editorManager = new InlineEditorManager(
 				this.app,
-				this.plugin,
+				this.plugin
 			);
 		}
 	}
@@ -99,7 +104,7 @@ export class TaskListItemComponent extends Component {
 					try {
 						await this.onTaskUpdate(originalTask, updatedTask);
 						console.log(
-							"listItem onTaskUpdate completed successfully",
+							"listItem onTaskUpdate completed successfully"
 						);
 						// Don't update task reference here - let onContentEditFinished handle it
 					} catch (error) {
@@ -112,7 +117,7 @@ export class TaskListItemComponent extends Component {
 			},
 			onContentEditFinished: (
 				targetEl: HTMLElement,
-				updatedTask: Task,
+				updatedTask: Task
 			) => {
 				// Update the task reference with the saved task
 				this.task = updatedTask;
@@ -125,13 +130,13 @@ export class TaskListItemComponent extends Component {
 
 				// Release the editor from the manager
 				TaskListItemComponent.editorManager?.releaseEditor(
-					this.task.id,
+					this.task.id
 				);
 			},
 			onMetadataEditFinished: (
 				targetEl: HTMLElement,
 				updatedTask: Task,
-				fieldType: string,
+				fieldType: string
 			) => {
 				// Update the task reference with the saved task
 				this.task = updatedTask;
@@ -141,7 +146,7 @@ export class TaskListItemComponent extends Component {
 
 				// Release the editor from the manager
 				TaskListItemComponent.editorManager?.releaseEditor(
-					this.task.id,
+					this.task.id
 				);
 			},
 			useEmbeddedEditor: true, // Enable Obsidian's embedded editor
@@ -149,7 +154,7 @@ export class TaskListItemComponent extends Component {
 
 		return TaskListItemComponent.editorManager!.getEditor(
 			this.task,
-			editorOptions,
+			editorOptions
 		);
 	}
 
@@ -159,7 +164,7 @@ export class TaskListItemComponent extends Component {
 	private isCurrentlyEditing(): boolean {
 		return (
 			TaskListItemComponent.editorManager?.hasActiveEditor(
-				this.task.id,
+				this.task.id
 			) || false
 		);
 	}
@@ -172,8 +177,8 @@ export class TaskListItemComponent extends Component {
 					"task-genius:selection-changed",
 					() => {
 						this.updateSelectionVisualState();
-					},
-				),
+					}
+				)
 			);
 
 			// Setup long press detection for mobile
@@ -185,7 +190,7 @@ export class TaskListItemComponent extends Component {
 							this.selectionManager?.enterSelectionMode();
 							this.handleMultiSelect();
 						},
-					},
+					}
 				);
 			}
 		}
@@ -210,11 +215,11 @@ export class TaskListItemComponent extends Component {
 					() => {
 						// Refresh view after operation
 						// The parent view should handle this via task updates
-					},
+					}
 				).catch((error) => {
 					console.error(
 						"Failed to show bulk operations menu:",
-						error,
+						error
 					);
 				});
 				return;
@@ -253,7 +258,7 @@ export class TaskListItemComponent extends Component {
 				const checkbox = createTaskCheckbox(
 					this.task.status,
 					this.task,
-					el,
+					el
 				);
 				this.checkboxInput = checkbox;
 
@@ -279,7 +284,7 @@ export class TaskListItemComponent extends Component {
 						}
 					}
 				});
-			},
+			}
 		);
 
 		this.element.appendChild(checkboxEl);
@@ -371,7 +376,7 @@ export class TaskListItemComponent extends Component {
 			}
 
 			const priorityConfig = TaskListItemComponent.PRIORITY_CONFIG.find(
-				(config) => config.value === numericPriority,
+				(config) => config.value === numericPriority
 			);
 			const classes = ["task-priority"];
 			if (priorityConfig) {
@@ -445,13 +450,24 @@ export class TaskListItemComponent extends Component {
 	}
 
 	private renderMetadata() {
+		// Clear timer element reference before re-rendering
+		this.timerEl = null;
+
 		this.metadataEl.empty();
+
+		// Working-on timer display: show elapsed time if timer exists
+		if (
+			this.viewMode === "working-on" &&
+			this.plugin.settings.taskTimer?.enabled
+		) {
+			this.renderTimerMetadata();
+		}
 
 		// For cancelled tasks, show cancelled date (independent of completion status)
 		if (this.task.metadata.cancelledDate) {
 			this.renderDateMetadata(
 				"cancelled",
-				this.task.metadata.cancelledDate,
+				this.task.metadata.cancelledDate
 			);
 		}
 
@@ -468,7 +484,7 @@ export class TaskListItemComponent extends Component {
 			if (this.task.metadata.scheduledDate) {
 				this.renderDateMetadata(
 					"scheduled",
-					this.task.metadata.scheduledDate,
+					this.task.metadata.scheduledDate
 				);
 			}
 
@@ -486,7 +502,7 @@ export class TaskListItemComponent extends Component {
 			if (this.task.metadata.completedDate) {
 				this.renderDateMetadata(
 					"completed",
-					this.task.metadata.completedDate,
+					this.task.metadata.completedDate
 				);
 			}
 
@@ -494,7 +510,7 @@ export class TaskListItemComponent extends Component {
 			if (this.task.metadata.createdDate) {
 				this.renderDateMetadata(
 					"created",
-					this.task.metadata.createdDate,
+					this.task.metadata.createdDate
 				);
 			}
 		}
@@ -534,6 +550,123 @@ export class TaskListItemComponent extends Component {
 		this.renderAddMetadataButton();
 	}
 
+	private renderTimerMetadata() {
+		const blockId = this.task.metadata?.id;
+		if (!blockId) {
+			return;
+		}
+
+		try {
+			const timerManager = new TaskTimerManager(
+				this.plugin.settings.taskTimer
+			);
+			const timer = timerManager.getTimerByFileAndBlock(
+				this.task.filePath,
+				blockId
+			);
+			if (!timer) {
+				return;
+			}
+
+			const duration = timerManager.getCurrentDuration(timer.taskId);
+			const formatted = timerManager.formatDuration(duration);
+
+			this.timerEl = this.metadataEl.createDiv({
+				cls: "task-timer-meta",
+			});
+			this.timerEl.createSpan({
+				cls: "task-timer-duration",
+				text: "⏱ " + formatted,
+			});
+			this.timerEl.createSpan({
+				cls: "task-timer-status",
+				text: ` (${t(
+					timer.status === "running" ? "Running" : "Paused"
+				)})`,
+			});
+
+			// Start periodic updates if timer is running
+			if (timer.status === "running") {
+				this.startTimerUpdateInterval();
+			}
+		} catch (e) {
+			console.warn("[TaskListItem] Failed to render timer metadata", e);
+		}
+	}
+
+	/**
+	 * Start periodic timer updates using registerInterval (auto-cleaned on unload)
+	 */
+	private startTimerUpdateInterval() {
+		// Only register once - registerInterval handles cleanup automatically
+		if (this.hasActiveTimerInterval) {
+			return;
+		}
+
+		this.hasActiveTimerInterval = true;
+
+		// Update every second - registerInterval auto-cleans on component unload
+		this.registerInterval(
+			window.setInterval(() => {
+				this.updateTimerDisplay();
+			}, 1000)
+		);
+	}
+
+	/**
+	 * Update the timer display without re-rendering the entire metadata
+	 */
+	private updateTimerDisplay() {
+		const blockId = this.task.metadata?.id;
+		if (!blockId || !this.timerEl) {
+			return;
+		}
+
+		try {
+			const timerManager = new TaskTimerManager(
+				this.plugin.settings.taskTimer
+			);
+			const timer = timerManager.getTimerByFileAndBlock(
+				this.task.filePath,
+				blockId
+			);
+
+			if (!timer) {
+				// Timer was stopped/completed - show "Stopped" status with last known duration
+				const statusSpan =
+					this.timerEl.querySelector(".task-timer-status");
+				if (statusSpan) {
+					statusSpan.textContent = ` (${t("Stopped")})`;
+					statusSpan.addClass("task-timer-stopped");
+				}
+				// Keep the element visible with last duration shown
+				return;
+			}
+
+			// Update duration display
+			const duration = timerManager.getCurrentDuration(timer.taskId);
+			const formatted = timerManager.formatDuration(duration);
+
+			const durationSpan = this.timerEl.querySelector(
+				".task-timer-duration"
+			);
+			if (durationSpan) {
+				durationSpan.textContent = "⏱ " + formatted;
+			}
+
+			// Update status display
+			const statusSpan = this.timerEl.querySelector(".task-timer-status");
+			if (statusSpan) {
+				statusSpan.textContent = ` (${t(
+					timer.status === "running" ? "Running" : "Paused"
+				)})`;
+				statusSpan.removeClass("task-timer-stopped");
+			}
+		} catch (e) {
+			console.warn("[TaskListItem] Failed to update timer display", e);
+		}
+	}
+
 	private renderDateMetadata(
 		type:
 			| "due"
@@ -542,7 +675,7 @@ export class TaskListItemComponent extends Component {
 			| "completed"
 			| "cancelled"
 			| "created",
-		dateValue: number,
+		dateValue: number
 	) {
 		const dateEl = this.metadataEl.createEl("div", {
 			cls: ["task-date", `task-${type}-date`],
@@ -593,7 +726,7 @@ export class TaskListItemComponent extends Component {
 						year: "numeric",
 						month: "long",
 						day: "numeric",
-					});
+				  });
 		}
 
 		if (cssClass) {
@@ -613,20 +746,20 @@ export class TaskListItemComponent extends Component {
 						type === "due"
 							? "dueDate"
 							: type === "scheduled"
-								? "scheduledDate"
-								: type === "start"
-									? "startDate"
-									: type === "cancelled"
-										? "cancelledDate"
-										: type === "completed"
-											? "completedDate"
-											: null;
+							? "scheduledDate"
+							: type === "start"
+							? "startDate"
+							: type === "cancelled"
+							? "cancelledDate"
+							: type === "completed"
+							? "completedDate"
+							: null;
 
 					if (fieldType) {
 						this.getInlineEditor().showMetadataEditor(
 							dateEl,
 							fieldType,
-							dateString,
+							dateString
 						);
 					}
 				}
@@ -672,7 +805,7 @@ export class TaskListItemComponent extends Component {
 					this.getInlineEditor().showMetadataEditor(
 						projectEl,
 						"project",
-						this.task.metadata.project || "",
+						this.task.metadata.project || ""
 					);
 				}
 			});
@@ -702,7 +835,7 @@ export class TaskListItemComponent extends Component {
 							this.getInlineEditor().showMetadataEditor(
 								tagsContainer,
 								"tags",
-								tagsString,
+								tagsString
 							);
 						}
 					});
@@ -724,7 +857,7 @@ export class TaskListItemComponent extends Component {
 					this.getInlineEditor().showMetadataEditor(
 						recurrenceEl,
 						"recurrence",
-						this.task.metadata.recurrence || "",
+						this.task.metadata.recurrence || ""
 					);
 				}
 			});
@@ -745,7 +878,7 @@ export class TaskListItemComponent extends Component {
 					this.getInlineEditor().showMetadataEditor(
 						onCompletionEl,
 						"onCompletion",
-						this.task.metadata.onCompletion || "",
+						this.task.metadata.onCompletion || ""
 					);
 				}
 			});
@@ -757,7 +890,7 @@ export class TaskListItemComponent extends Component {
 			cls: "task-dependson",
 		});
 		dependsOnEl.textContent = `⛔ ${this.task.metadata.dependsOn?.join(
-			", ",
+			", "
 		)}`;
 
 		// Make dependsOn clickable for editing only if inline editor is enabled
@@ -768,7 +901,7 @@ export class TaskListItemComponent extends Component {
 					this.getInlineEditor().showMetadataEditor(
 						dependsOnEl,
 						"dependsOn",
-						this.task.metadata.dependsOn?.join(", ") || "",
+						this.task.metadata.dependsOn?.join(", ") || ""
 					);
 				}
 			});
@@ -789,7 +922,7 @@ export class TaskListItemComponent extends Component {
 					this.getInlineEditor().showMetadataEditor(
 						idEl,
 						"id",
-						this.task.metadata.id || "",
+						this.task.metadata.id || ""
 					);
 				}
 			});
@@ -886,7 +1019,7 @@ export class TaskListItemComponent extends Component {
 		if (fieldsToShow.length === 0) {
 			menu.addItem((item) => {
 				item.setTitle(
-					"All metadata fields are already set",
+					"All metadata fields are already set"
 				).setDisabled(true);
 			});
 		} else {
@@ -903,7 +1036,7 @@ export class TaskListItemComponent extends Component {
 
 							editor.showMetadataEditor(
 								tempContainer,
-								field.key as any,
+								field.key as any
 							);
 						});
 				});
@@ -994,7 +1127,7 @@ export class TaskListItemComponent extends Component {
 		this.markdownRenderer = new MarkdownRendererComponent(
 			this.app,
 			this.contentEl,
-			this.task.filePath,
+			this.task.filePath
 		);
 		this.addChild(this.markdownRenderer);
 
@@ -1021,11 +1154,11 @@ export class TaskListItemComponent extends Component {
 			// If disabled, always use multi-line (traditional) layout
 			this.contentMetadataContainer.toggleClass(
 				"multi-line-content",
-				true,
+				true
 			);
 			this.contentMetadataContainer.toggleClass(
 				"single-line-content",
-				false,
+				false
 			);
 			return;
 		}
@@ -1036,11 +1169,11 @@ export class TaskListItemComponent extends Component {
 		// Apply appropriate layout class using Obsidian's toggleClass method
 		this.contentMetadataContainer.toggleClass(
 			"multi-line-content",
-			isMultiLine,
+			isMultiLine
 		);
 		this.contentMetadataContainer.toggleClass(
 			"single-line-content",
-			!isMultiLine,
+			!isMultiLine
 		);
 	}
 
@@ -1069,7 +1202,7 @@ export class TaskListItemComponent extends Component {
 
 		// Method 4: Check for elements that typically cause multi-line layout
 		const hasBlockElements = this.contentEl.querySelector(
-			"br, div, p, ul, ol, li, blockquote",
+			"br, div, p, ul, ol, li, blockquote"
 		);
 		if (hasBlockElements) {
 			return true;
@@ -1203,6 +1336,9 @@ export class TaskListItemComponent extends Component {
 	}
 
 	onunload() {
+		// Timer interval is auto-cleaned by registerInterval
+		this.timerEl = null;
+
 		// Release editor from manager if this task was being edited
 		if (
 			TaskListItemComponent.editorManager?.hasActiveEditor(this.task.id)

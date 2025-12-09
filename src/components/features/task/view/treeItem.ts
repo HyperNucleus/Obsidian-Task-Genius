@@ -22,6 +22,7 @@ import { sortTasks } from "@/commands/sortTaskCommands";
 import { TaskSelectionManager } from "@/components/features/task/selection/TaskSelectionManager";
 import { showBulkOperationsMenu } from "./BulkOperationsMenu";
 import { TaskStatusIndicator } from "./TaskStatusIndicator";
+import { TaskTimerManager } from "@/managers/timer-manager";
 
 export class TaskTreeItemComponent extends Component {
 	public element: HTMLElement;
@@ -49,6 +50,10 @@ export class TaskTreeItemComponent extends Component {
 	private contentMetadataContainer: HTMLElement;
 	private taskMap: Map<string, Task>;
 	private statusIndicator: TaskStatusIndicator | null = null;
+
+	// Timer update interval (managed by registerInterval, auto-cleaned on unload)
+	private timerEl: HTMLElement | null = null;
+	private hasActiveTimerInterval: boolean = false;
 
 	// Use shared editor manager instead of individual editors
 	private static editorManager: InlineEditorManager | null = null;
@@ -503,7 +508,18 @@ export class TaskTreeItemComponent extends Component {
 	}
 
 	private renderMetadata(metadataEl: HTMLElement) {
+		// Clear timer element reference before re-rendering
+		this.timerEl = null;
+
 		metadataEl.empty();
+
+		// Working-on timer display: show elapsed time if timer exists
+		if (
+			this.viewMode === "working-on" &&
+			this.plugin.settings.taskTimer?.enabled
+		) {
+			this.renderTimerMetadata(metadataEl);
+		}
 
 		// For cancelled tasks, show cancelled date (independent of completion status)
 		if (this.task.metadata.cancelledDate) {
@@ -896,6 +912,123 @@ export class TaskTreeItemComponent extends Component {
 			// Show metadata menu directly instead of calling showAddMetadataButton
 			this.showMetadataMenu(addBtn);
 		});
+	}
+
+	private renderTimerMetadata(metadataEl: HTMLElement) {
+		const blockId = this.task.metadata?.id;
+		if (!blockId) {
+			return;
+		}
+
+		try {
+			const timerManager = new TaskTimerManager(
+				this.plugin.settings.taskTimer
+			);
+			const timer = timerManager.getTimerByFileAndBlock(
+				this.task.filePath,
+				blockId
+			);
+			if (!timer) {
+				return;
+			}
+
+			const duration = timerManager.getCurrentDuration(timer.taskId);
+			const formatted = timerManager.formatDuration(duration);
+
+			this.timerEl = metadataEl.createDiv({
+				cls: "task-timer-meta",
+			});
+			this.timerEl.createSpan({
+				cls: "task-timer-duration",
+				text: "⏱ " + formatted,
+			});
+			this.timerEl.createSpan({
+				cls: "task-timer-status",
+				text: ` (${t(
+					timer.status === "running" ? "Running" : "Paused"
+				)})`,
+			});
+
+			// Start periodic updates if timer is running
+			if (timer.status === "running") {
+				this.startTimerUpdateInterval();
+			}
+		} catch (e) {
+			console.warn("[TaskTreeItem] Failed to render timer metadata", e);
+		}
+	}
+
+	/**
+	 * Start periodic timer updates using registerInterval (auto-cleaned on unload)
+	 */
+	private startTimerUpdateInterval() {
+		// Only register once - registerInterval handles cleanup automatically
+		if (this.hasActiveTimerInterval) {
+			return;
+		}
+
+		this.hasActiveTimerInterval = true;
+
+		// Update every second - registerInterval auto-cleans on component unload
+		this.registerInterval(
+			window.setInterval(() => {
+				this.updateTimerDisplay();
+			}, 1000)
+		);
+	}
+
+	/**
+	 * Update the timer display without re-rendering the entire metadata
+	 */
+	private updateTimerDisplay() {
+		const blockId = this.task.metadata?.id;
+		if (!blockId || !this.timerEl) {
+			return;
+		}
+
+		try {
+			const timerManager = new TaskTimerManager(
+				this.plugin.settings.taskTimer
+			);
+			const timer = timerManager.getTimerByFileAndBlock(
+				this.task.filePath,
+				blockId
+			);
+
+			if (!timer) {
+				// Timer was stopped/completed - show "Stopped" status with last known duration
+				const statusSpan =
+					this.timerEl.querySelector(".task-timer-status");
+				if (statusSpan) {
+					statusSpan.textContent = ` (${t("Stopped")})`;
+					statusSpan.addClass("task-timer-stopped");
+				}
+				// Keep the element visible with last duration shown
+				return;
+			}
+
+			// Update duration display
+			const duration = timerManager.getCurrentDuration(timer.taskId);
+			const formatted = timerManager.formatDuration(duration);
+
+			const durationSpan = this.timerEl.querySelector(
+				".task-timer-duration"
+			);
+			if (durationSpan) {
+				durationSpan.textContent = "⏱ " + formatted;
+			}
+
+			// Update status display
+			const statusSpan = this.timerEl.querySelector(".task-timer-status");
+			if (statusSpan) {
+				statusSpan.textContent = ` (${t(
+					timer.status === "running" ? "Running" : "Paused"
+				)})`;
+				statusSpan.removeClass("task-timer-stopped");
+			}
+		} catch (e) {
+			console.warn("[TaskTreeItem] Failed to update timer display", e);
+		}
 	}
 
 	private showMetadataMenu(buttonEl: HTMLElement): void {
@@ -1585,6 +1718,9 @@ export class TaskTreeItemComponent extends Component {
 	}
 
 	onunload() {
+		// Timer interval is auto-cleaned by registerInterval
+		this.timerEl = null;
+
 		// Release editor from manager if this task was being edited
 		if (
 			TaskTreeItemComponent.editorManager?.hasActiveEditor(this.task.id)

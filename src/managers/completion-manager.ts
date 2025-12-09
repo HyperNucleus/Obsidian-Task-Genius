@@ -1,4 +1,4 @@
-import { Component, App } from "obsidian";
+import { Component, App, Notice } from "obsidian";
 import { Task } from "../types/task";
 import {
 	OnCompletionConfig,
@@ -15,11 +15,16 @@ import { CompleteActionExecutor } from "../executors/completion/complete-executo
 import { MoveActionExecutor } from "../executors/completion/move-executor";
 import { ArchiveActionExecutor } from "../executors/completion/archive-executor";
 import { DuplicateActionExecutor } from "../executors/completion/duplicate-executor";
+import { TaskTimerManager } from "./timer-manager";
+import { t } from "@/translations/helper";
 
 export class OnCompletionManager extends Component {
 	private executors: Map<OnCompletionActionType, BaseActionExecutor>;
 
-	constructor(private app: App, private plugin: TaskProgressBarPlugin) {
+	constructor(
+		private app: App,
+		private plugin: TaskProgressBarPlugin,
+	) {
 		super();
 		this.executors = new Map();
 		this.initializeExecutors();
@@ -30,8 +35,8 @@ export class OnCompletionManager extends Component {
 		this.plugin.registerEvent(
 			this.app.workspace.on(
 				"task-genius:task-completed",
-				this.handleTaskCompleted.bind(this)
-			)
+				this.handleTaskCompleted.bind(this),
+			),
 		);
 
 		console.log("OnCompletionManager loaded");
@@ -40,32 +45,36 @@ export class OnCompletionManager extends Component {
 	private initializeExecutors() {
 		this.executors.set(
 			OnCompletionActionType.DELETE,
-			new DeleteActionExecutor()
+			new DeleteActionExecutor(),
 		);
 		this.executors.set(
 			OnCompletionActionType.KEEP,
-			new KeepActionExecutor()
+			new KeepActionExecutor(),
 		);
 		this.executors.set(
 			OnCompletionActionType.COMPLETE,
-			new CompleteActionExecutor()
+			new CompleteActionExecutor(),
 		);
 		this.executors.set(
 			OnCompletionActionType.MOVE,
-			new MoveActionExecutor()
+			new MoveActionExecutor(),
 		);
 		this.executors.set(
 			OnCompletionActionType.ARCHIVE,
-			new ArchiveActionExecutor()
+			new ArchiveActionExecutor(),
 		);
 		this.executors.set(
 			OnCompletionActionType.DUPLICATE,
-			new DuplicateActionExecutor()
+			new DuplicateActionExecutor(),
 		);
 	}
 
 	private async handleTaskCompleted(task: Task) {
 		console.log("handleTaskCompleted", task);
+
+		// Auto-stop timer when task is completed (if timer is enabled)
+		await this.autoStopTimerForCompletedTask(task);
+
 		// 检查是否存在 onCompletion 属性，但允许空值进入解析逻辑
 		if (!task.metadata.hasOwnProperty("onCompletion")) {
 			return;
@@ -73,7 +82,7 @@ export class OnCompletionManager extends Component {
 
 		try {
 			const parseResult = this.parseOnCompletion(
-				task.metadata.onCompletion || ""
+				task.metadata.onCompletion || "",
 			);
 
 			console.log("parseResult", parseResult);
@@ -81,7 +90,7 @@ export class OnCompletionManager extends Component {
 			if (!parseResult.isValid || !parseResult.config) {
 				console.warn(
 					"Invalid onCompletion configuration:",
-					parseResult.error
+					parseResult.error,
 				);
 				return;
 			}
@@ -93,7 +102,7 @@ export class OnCompletionManager extends Component {
 	}
 
 	public parseOnCompletion(
-		onCompletionValue: string
+		onCompletionValue: string,
 	): OnCompletionParseResult {
 		if (!onCompletionValue || typeof onCompletionValue !== "string") {
 			return {
@@ -110,7 +119,7 @@ export class OnCompletionManager extends Component {
 			// Try to parse as JSON first (structured format)
 			if (trimmedValue.startsWith("{")) {
 				const config = JSON.parse(
-					onCompletionValue
+					onCompletionValue,
 				) as OnCompletionConfig;
 				return {
 					config,
@@ -216,7 +225,7 @@ export class OnCompletionManager extends Component {
 
 	public async executeOnCompletion(
 		task: Task,
-		config: OnCompletionConfig
+		config: OnCompletionConfig,
 	): Promise<OnCompletionExecutionResult> {
 		const executor = this.executors.get(config.type);
 
@@ -240,6 +249,55 @@ export class OnCompletionManager extends Component {
 				success: false,
 				error: `Execution failed: ${error.message}`,
 			};
+		}
+	}
+
+	/**
+	 * Auto-stop timer when a task is completed
+	 * Checks if the task has an active timer and completes it
+	 */
+	private async autoStopTimerForCompletedTask(task: Task): Promise<void> {
+		// Check if timer feature is enabled
+		if (!this.plugin.settings.taskTimer?.enabled) {
+			return;
+		}
+
+		// Get block ID from task metadata
+		const blockId = task.metadata?.id;
+		if (!blockId) {
+			return;
+		}
+
+		try {
+			const timerManager = new TaskTimerManager(
+				this.plugin.settings.taskTimer,
+			);
+
+			// Check if there's an active timer for this task
+			const timer = timerManager.getTimerByFileAndBlock(
+				task.filePath,
+				blockId,
+			);
+
+			if (
+				timer &&
+				(timer.status === "running" || timer.status === "paused")
+			) {
+				// Complete the timer and get duration
+				const duration = timerManager.completeTimer(timer.taskId);
+
+				if (duration) {
+					console.log(
+						`[OnCompletionManager] Timer auto-stopped for completed task. Duration: ${duration}`,
+					);
+					new Notice(t("Timer stopped") + `: ${duration}`);
+				}
+			}
+		} catch (error) {
+			console.error(
+				"[OnCompletionManager] Error auto-stopping timer:",
+				error,
+			);
 		}
 	}
 

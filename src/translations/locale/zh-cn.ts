@@ -2381,6 +2381,45 @@ const translations = {
 	"Columns that are currently hidden from view. Click the eye icon to show them again.":
 		"当前隐藏的列。点击眼睛图标可重新显示。",
 	"Unhide column": "显示列",
+
+	// Timer feature
+	"Timer Statistics": "计时统计",
+	"Active Timers": "活跃计时器",
+	"Active timers": "活跃计时器",
+	"No active timers": "暂无活跃计时器",
+	"Tasks in Current View": "当前视图中的任务",
+	"No tasks with active timers in this view": "此视图中没有正在计时的任务",
+	"Total Time": "总计时",
+	"Total Timers": "计时器总数",
+	Paused: "已暂停",
+	"Completed Timers": "已完成的计时",
+	"No completed timers": "暂无已完成的计时",
+	"Completed at": "完成于",
+	Pause: "暂停",
+	Resume: "继续",
+	Stop: "停止",
+	Untitled: "未命名",
+	"Start Timer": "开始计时",
+	"Pause Timer": "暂停计时",
+	"Resume Timer": "继续计时",
+	"Stop Timer": "停止计时",
+	"Timer started": "计时已开始",
+	"Timer paused": "计时已暂停",
+	"Timer resumed": "计时已继续",
+	"Timer stopped": "计时已停止",
+	"Failed to start timer": "启动计时器失败",
+	"Block ID added": "块 ID 已添加",
+	"Task status updated": "任务状态已更新",
+
+	// Working On view
+	"Working On": "进行中",
+
+	// Quick Capture Timer Integration
+	"Timer Integration": "计时器集成",
+	"Auto-start timer": "自动启动计时器",
+	"Automatically start the timer when creating a new task via quick capture (checkbox mode only)":
+		"通过快速捕获创建新任务时自动启动计时器（仅限复选框模式）",
+	"Timer started for new task": "已为新任务启动计时器",
 };
 
 export default translations;

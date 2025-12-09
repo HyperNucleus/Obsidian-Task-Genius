@@ -304,6 +304,31 @@ export function renderQuickCaptureSettingsTab(
 				}),
 		);
 
+	// Timer integration section (only show if task timer is enabled)
+	if (settingTab.plugin.settings.taskTimer?.enabled) {
+		new Setting(containerEl).setName(t("Timer Integration")).setHeading();
+
+		new Setting(containerEl)
+			.setName(t("Auto-start timer"))
+			.setDesc(
+				t(
+					"Automatically start the timer when creating a new task via quick capture (checkbox mode only)",
+				),
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(
+						settingTab.plugin.settings.quickCapture
+							.autoStartTimer ?? false,
+					)
+					.onChange(async (value) => {
+						settingTab.plugin.settings.quickCapture.autoStartTimer =
+							value;
+						settingTab.applySettingsUpdate();
+					}),
+			);
+	}
+
 	// File creation mode settings
 	new Setting(containerEl).setName(t("File Creation Mode")).setHeading();
 

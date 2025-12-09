@@ -570,11 +570,13 @@ export class FluentTaskView extends ItemView {
 				this.updateView();
 			},
 			onNavigateToView: (viewId) => {
+				console.log(`[Task Genius] onNavigateToView called with viewId: ${viewId}, previous: ${this.currentViewId}`);
 				this.recordViewModeForView(
 					this.currentViewId,
 					this.viewState.viewMode
 				);
 				this.currentViewId = viewId;
+				console.log(`[Task Genius] currentViewId updated to: ${this.currentViewId}`);
 
 				// When navigating to projects view directly, clear project selection
 				// This enables the full project overview mode

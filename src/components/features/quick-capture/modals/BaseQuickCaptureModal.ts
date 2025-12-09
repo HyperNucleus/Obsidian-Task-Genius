@@ -21,6 +21,7 @@ import { SuggestManager } from "@/components/ui/suggest";
 import { EmbeddableMarkdownEditor } from "@/editor-extensions/core/markdown-editor";
 import { extractMetadataFromFilter } from "../../task/filter/filter-metadata-extractor";
 import type { RootFilterState } from "../../task/filter/ViewTaskFilter";
+import { TaskTimerManager } from "@/managers/timer-manager";
 
 /**
  * Quick capture save strategy types
@@ -553,6 +554,25 @@ export abstract class BaseQuickCaptureModal extends Modal {
 
 		let targetFile = this.tempTargetFilePath;
 
+		// Timer auto-start: prepare block ID if enabled (checkbox mode only)
+		let timerBlockId: string | undefined;
+		const shouldAutoStartTimer =
+			this.currentMode === "checkbox" &&
+			this.plugin.settings.taskTimer?.enabled &&
+			this.plugin.settings.quickCapture.autoStartTimer;
+
+		if (shouldAutoStartTimer) {
+			const timerManager = new TaskTimerManager(
+				this.plugin.settings.taskTimer,
+			);
+			timerBlockId = timerManager.generateBlockId();
+			// Append block ID to the content
+			processedContent = this.appendBlockIdToContent(
+				processedContent,
+				timerBlockId,
+			);
+		}
+
 		// Handle file mode
 		if (this.currentMode === "file" && this.taskMetadata.customFileName) {
 			targetFile = processDateTemplates(this.taskMetadata.customFileName);
@@ -606,6 +626,64 @@ export abstract class BaseQuickCaptureModal extends Modal {
 		};
 
 		await saveCapture(this.app, processedContent, captureOptions);
+
+		// Start timer after successful save (checkbox mode only)
+		if (shouldAutoStartTimer && timerBlockId) {
+			await this.startTimerForNewTask(targetFile, timerBlockId);
+		}
+	}
+
+	/**
+	 * Append block ID to content for timer tracking
+	 */
+	private appendBlockIdToContent(content: string, blockId: string): string {
+		// Check if content already has a block ID
+		if (/\s\^[\w-]+\s*$/.test(content)) {
+			return content;
+		}
+		return `${content} ^${blockId}`;
+	}
+
+	/**
+	 * Start timer for a newly created task
+	 */
+	private async startTimerForNewTask(
+		targetFile: string,
+		blockId: string,
+	): Promise<void> {
+		try {
+			const timerManager = new TaskTimerManager(
+				this.plugin.settings.taskTimer,
+			);
+
+			// Resolve the actual file path
+			let resolvedPath = targetFile;
+			if (this.plugin.settings.quickCapture.targetType === "daily-note") {
+				const dateStr = moment().format(
+					this.plugin.settings.quickCapture.dailyNoteSettings.format,
+				);
+				const folder =
+					this.plugin.settings.quickCapture.dailyNoteSettings.folder;
+				resolvedPath = folder
+					? `${folder}/${dateStr}.md`
+					: `${dateStr}.md`;
+			}
+
+			// Ensure .md extension
+			if (!resolvedPath.endsWith(".md")) {
+				resolvedPath += ".md";
+			}
+
+			// Start the timer
+			timerManager.startTimer(resolvedPath, blockId);
+
+			new Notice(t("Timer started for new task"));
+		} catch (error) {
+			console.error(
+				"[QuickCapture] Failed to start timer for new task:",
+				error,
+			);
+		}
 	}
 
 	/**

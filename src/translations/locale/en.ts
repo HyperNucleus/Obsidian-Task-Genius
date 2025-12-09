@@ -2590,6 +2590,46 @@ const translations = {
 	"Columns that are currently hidden from view. Click the eye icon to show them again.":
 		"Columns that are currently hidden from view. Click the eye icon to show them again.",
 	"Unhide column": "Unhide column",
+
+	// Timer feature
+	"Timer Statistics": "Timer Statistics",
+	"Active Timers": "Active Timers",
+	"Active timers": "Active timers",
+	"No active timers": "No active timers",
+	"Tasks in Current View": "Tasks in Current View",
+	"No tasks with active timers in this view":
+		"No tasks with active timers in this view",
+	"Total Time": "Total Time",
+	"Total Timers": "Total Timers",
+	Paused: "Paused",
+	"Completed Timers": "Completed Timers",
+	"No completed timers": "No completed timers",
+	"Completed at": "Completed at",
+	Pause: "Pause",
+	Resume: "Resume",
+	Stop: "Stop",
+	Untitled: "Untitled",
+	"Start Timer": "Start Timer",
+	"Pause Timer": "Pause Timer",
+	"Resume Timer": "Resume Timer",
+	"Stop Timer": "Stop Timer",
+	"Timer started": "Timer started",
+	"Timer paused": "Timer paused",
+	"Timer resumed": "Timer resumed",
+	"Timer stopped": "Timer stopped",
+	"Failed to start timer": "Failed to start timer",
+	"Block ID added": "Block ID added",
+	"Task status updated": "Task status updated",
+
+	// Working On view
+	"Working On": "Working On",
+
+	// Quick Capture Timer Integration
+	"Timer Integration": "Timer Integration",
+	"Auto-start timer": "Auto-start timer",
+	"Automatically start the timer when creating a new task via quick capture (checkbox mode only)":
+		"Automatically start the timer when creating a new task via quick capture (checkbox mode only)",
+	"Timer started for new task": "Timer started for new task",
 };
 
 export default translations;

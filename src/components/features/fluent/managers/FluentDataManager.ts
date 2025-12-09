@@ -6,6 +6,7 @@ import { RootFilterState } from "@/components/features/task/filter/ViewTaskFilte
 import { isDataflowEnabled } from "@/dataflow/createDataflow";
 import { Events, on } from "@/dataflow/events/Events";
 import { sortTasks } from "@/commands/sortTaskCommands";
+import { TaskTimerManager } from "@/managers/timer-manager";
 
 /**
  * FluentDataManager - Stateless data loading, filtering, and sorting executor
@@ -121,11 +122,19 @@ export class FluentDataManager extends Component {
 		const viewId = this.getCurrentViewId();
 		const filterState = this.getCurrentFilterState();
 
+		console.log(`[FluentData] applyFilters called for viewId: ${viewId}, total tasks: ${tasks.length}`);
+
 		// Build filter options
 		const filterOptions: any = {
 			textQuery:
 				filterState.filterInputValue || filterState.searchQuery || "",
 		};
+
+		// Always enable v2Filters for Working-on so the special filter runs
+		if (viewId === "working-on") {
+			filterOptions.v2Filters = filterOptions.v2Filters || {};
+			console.log("[FluentData] Working-on view detected, will apply special filter");
+		}
 
 		// Apply advanced filters from the filter popover/modal
 		if (
@@ -161,8 +170,15 @@ export class FluentDataManager extends Component {
 			filterOptions,
 		);
 
-		// Apply additional fluent-specific filters if needed
-		if (filterOptions.v2Filters) {
+		// Always apply working-on filter when in that view, regardless of v2Filters
+		if (viewId === "working-on") {
+			console.log(`[FluentData] Before applyWorkingOnFilter: ${filteredTasks.length} tasks`);
+			filteredTasks = this.applyWorkingOnFilter(filteredTasks);
+			console.log(`[FluentData] After applyWorkingOnFilter: ${filteredTasks.length} tasks`);
+		}
+
+		// Apply additional fluent-specific filters if needed (but skip working-on duplicate filter)
+		if (filterOptions.v2Filters && viewId !== "working-on") {
 			filteredTasks = this.applyV2Filters(
 				filteredTasks,
 				filterOptions.v2Filters,
@@ -170,7 +186,7 @@ export class FluentDataManager extends Component {
 		}
 
 		console.log(
-			`[FluentData] Filtered ${filteredTasks.length} tasks from ${tasks.length} total`,
+			`[FluentData] Final filtered result: ${filteredTasks.length} tasks from ${tasks.length} total for viewId: ${viewId}`,
 		);
 
 		// Apply sorting (global default first, then view-specific)
@@ -191,6 +207,12 @@ export class FluentDataManager extends Component {
 
 		const normalizeProjectId = (value?: string | null): string =>
 			(value ?? "").trim().toLowerCase();
+
+		// Working-on View Special Filter
+		// Shows tasks that are: 1) In Progress status OR 2) Have an active timer
+		if (viewId === "working-on") {
+			result = this.applyWorkingOnFilter(result);
+		}
 
 		// Status filter
 		if (filters.status && filters.status !== "all") {
@@ -279,6 +301,64 @@ export class FluentDataManager extends Component {
 			);
 		}
 
+		return result;
+	}
+
+	/**
+	 * Apply Working-on view filter
+	 * Shows tasks that are: 1) In Progress status OR 2) Have an active timer (running or paused)
+	 * @param tasks - Tasks to filter
+	 * @returns Filtered tasks for Working-on view
+	 */
+	private applyWorkingOnFilter(tasks: Task[]): Task[] {
+		console.log(`[FluentData] applyWorkingOnFilter called with ${tasks.length} tasks`);
+		
+		// Get in-progress status marks from settings
+		const inProgressMarks = (
+			this.plugin.settings.taskStatuses.inProgress || ">|/"
+		)
+			.split("|")
+			.map((m) => m.trim())
+			.filter(Boolean);
+
+		console.log(`[FluentData] In-progress marks: ${inProgressMarks.join(", ")}`);
+
+		// Get timer manager instance if timer feature is enabled
+		let timerManager: TaskTimerManager | null = null;
+		let activeTimerBlockIds: Set<string> = new Set();
+
+		if (this.plugin.settings.taskTimer?.enabled) {
+			timerManager = new TaskTimerManager(this.plugin.settings.taskTimer);
+
+			// Get all active timers and build a set of block IDs
+			const activeTimers = timerManager.getAllActiveTimers();
+			console.log(`[FluentData] Active timers count: ${activeTimers.length}`);
+			for (const timer of activeTimers) {
+				if (timer.status === "running" || timer.status === "paused") {
+					activeTimerBlockIds.add(timer.blockId);
+				}
+			}
+		}
+
+		const result = tasks.filter((task) => {
+			// Skip completed tasks
+			if (task.completed) return false;
+
+			// Condition 1: Task has In Progress status
+			const taskStatus = task.status || " ";
+			const isInProgress = inProgressMarks.includes(taskStatus);
+			if (isInProgress) return true;
+
+			// Condition 2: Task has an active timer
+			const blockId = task.metadata?.id;
+			if (blockId && activeTimerBlockIds.has(blockId)) {
+				return true;
+			}
+
+			return false;
+		});
+		
+		console.log(`[FluentData] applyWorkingOnFilter result: ${result.length} tasks after filter`);
 		return result;
 	}
 

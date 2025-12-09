@@ -428,6 +428,8 @@ export interface QuickCaptureSettings {
 		templateFile: string; // Template file path
 		writeContentTagsToFrontmatter?: boolean; // When true, write #tags from content into frontmatter.tags (merged, deduped)
 	};
+	// Timer integration settings
+	autoStartTimer?: boolean; // Whether to auto-start timer when creating task (default false)
 }
 
 /** Define the structure for task gutter settings */
@@ -1192,6 +1194,8 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			templateFile: "",
 			writeContentTagsToFrontmatter: false,
 		},
+		// Timer integration
+		autoStartTimer: false,
 	},
 
 	// Workflow Defaults
@@ -1364,6 +1368,16 @@ export const DEFAULT_SETTINGS: TaskProgressBarSettings = {
 			id: "inbox",
 			name: t("Inbox"),
 			icon: "inbox",
+			type: "default",
+			visible: true,
+			hideCompletedAndAbandonedTasks: true,
+			filterRules: {},
+			filterBlanks: false,
+		},
+		{
+			id: "working-on",
+			name: t("Working On"),
+			icon: "timer",
 			type: "default",
 			visible: true,
 			hideCompletedAndAbandonedTasks: true,
