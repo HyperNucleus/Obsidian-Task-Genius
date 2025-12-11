@@ -54,6 +54,7 @@ export class TaskProgressBarSettingTab extends PluginSettingTab {
 
 	// Tabs management
 	private currentTab: string = "general";
+	icon: string = "task-genius";
 	public containerEl: HTMLElement;
 	private tabs: Array<{
 		id: string;
