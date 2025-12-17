@@ -17,8 +17,10 @@ export function renderTaskStatusSettingsTab(
 	containerEl: HTMLElement,
 ) {
 	new Setting(containerEl)
-		.setName(t("Checkbox Status Settings"))
-		.setDesc(t("Configure checkbox status settings"))
+		.setName(t("Task Status Configuration"))
+		.setDesc(
+			t("Define how task statuses are recognized, displayed, and cycled"),
+		)
 		.setHeading();
 
 	// Check if Tasks plugin is installed and show compatibility warning
@@ -48,27 +50,35 @@ export function renderTaskStatusSettingsTab(
 
 		warningText.createEl("span", {
 			text: t(
-				"Current status management and date management may conflict with the Tasks plugin. Please check the ",
+				"Both plugins manage task statuses and dates, which may cause conflicts. To avoid issues: 1) Choose ONE plugin for status cycling, 2) Disable overlapping date features. See the ",
 			),
 		});
 
 		const compatibilityLink = warningText.createEl("a", {
-			text: t("compatibility documentation"),
+			text: t("compatibility guide"),
 			href: "https://taskgenius.md/docs/compatibility",
 		});
 		compatibilityLink.setAttribute("target", "_blank");
 		compatibilityLink.setAttribute("rel", "noopener noreferrer");
 
 		warningText.createEl("span", {
-			text: t(" for more information."),
+			text: t(" for setup instructions."),
 		});
 	}
 
+	// Parent Task Automation Section
 	new Setting(containerEl)
-		.setName(t("Auto complete parent checkbox"))
+		.setName(t("Parent Task Automation"))
+		.setDesc(
+			t("Automatically update parent tasks based on subtask completion"),
+		)
+		.setHeading();
+
+	new Setting(containerEl)
+		.setName(t("Auto-complete parent tasks"))
 		.setDesc(
 			t(
-				"Toggle this to allow this plugin to auto complete parent checkbox when all child tasks are completed.",
+				"When ALL subtasks are completed, automatically mark the parent task as completed.",
 			),
 		)
 		.addToggle((toggle) =>
@@ -84,7 +94,7 @@ export function renderTaskStatusSettingsTab(
 		.setName(t("Mark parent as 'In Progress' when partially complete"))
 		.setDesc(
 			t(
-				"When some but not all child tasks are completed, mark the parent checkbox as 'In Progress'. Only works when 'Auto complete parent' is enabled.",
+				"When SOME (but not all) subtasks are done, mark the parent as 'In Progress'. Requires 'Auto-complete parent tasks' to be enabled.",
 			),
 		)
 		.addToggle((toggle) =>
@@ -100,13 +110,25 @@ export function renderTaskStatusSettingsTab(
 				}),
 		);
 
-	// Checkbox Status Settings
+	// Core Status Categories Section - with explanation
 	new Setting(containerEl)
-		.setName(t("Checkbox Status Settings"))
+		.setName(t("Core Status Categories"))
 		.setDesc(
-			t(
-				"Select a predefined checkbox status collection or customize your own",
-			),
+			createFragment((frag) => {
+				frag.appendText(
+					t(
+						"Task Genius uses 5 core categories to calculate progress and statistics. Each category can have multiple symbols.",
+					),
+				);
+				frag.createEl("br");
+				frag.createEl("br");
+				const learnMore = frag.createEl("a", {
+					text: t("Learn why 5 categories →"),
+					href: "https://taskgenius.md/docs/task-status#status-categories",
+				});
+				learnMore.setAttribute("target", "_blank");
+				learnMore.setAttribute("rel", "noopener noreferrer");
+			}),
 		)
 		.setHeading()
 		.addDropdown((dropdown) => {
@@ -344,34 +366,34 @@ export function renderTaskStatusSettingsTab(
 	createStatusConfigButton("completed", {
 		title: "Completed",
 		description:
-			"Configure symbols that represent completed tasks in square brackets",
+			"Finished tasks. Counts as 100% in progress bars. Common symbols: x, X",
 		placeholder: "x",
 		icon: "completed",
-	});
-
-	// Configure Planned status
-	createStatusConfigButton("planned", {
-		title: "Planned",
-		description:
-			"Configure symbols that represent planned tasks in square brackets",
-		placeholder: "?",
-		icon: "planned",
 	});
 
 	// Configure In Progress status
 	createStatusConfigButton("inProgress", {
 		title: "In Progress",
 		description:
-			"Configure symbols that represent tasks in progress in square brackets",
+			"Tasks actively being worked on. Shows as 'active' in progress tracking. Common symbols: /, >",
 		placeholder: "/",
 		icon: "inProgress",
+	});
+
+	// Configure Planned status
+	createStatusConfigButton("planned", {
+		title: "Planned",
+		description:
+			"Scheduled or waiting tasks. Often excluded from progress counts. Common symbols: ?, >",
+		placeholder: "?",
+		icon: "planned",
 	});
 
 	// Configure Abandoned status
 	createStatusConfigButton("abandoned", {
 		title: "Abandoned",
 		description:
-			"Configure symbols that represent abandoned tasks in square brackets",
+			"Cancelled or irrelevant tasks. Excluded from active tracking. Common symbol: -",
 		placeholder: "-",
 		icon: "abandoned",
 	});
@@ -380,17 +402,17 @@ export function renderTaskStatusSettingsTab(
 	createStatusConfigButton("notStarted", {
 		title: "Not Started",
 		description:
-			'Configure symbols that represent not started tasks in square brackets. Default is space " "',
+			"Pending tasks awaiting action. Default starting state. Common symbol: (space)",
 		placeholder: " ",
 		icon: "notStarted",
 		preserveEmpty: true,
 	});
 
 	new Setting(containerEl)
-		.setName(t("Count other statuses as"))
+		.setName(t("Count unknown symbols as"))
 		.setDesc(
 			t(
-				'Select the status to count other statuses as. Default is "Not Started".',
+				"How to treat symbols not defined above (e.g., [!], [r]). Default: Not Started.",
 			),
 		)
 		.addDropdown((dropdown) => {
@@ -410,18 +432,22 @@ export function renderTaskStatusSettingsTab(
 
 	// Task Counting Settings
 	new Setting(containerEl)
-		.setName(t("Task Counting Settings"))
-		.setDesc(t("Configure which task markers to count or exclude"))
+		.setName(t("Progress Calculation"))
+		.setDesc(
+			t("Control which tasks are included in progress bar calculations"),
+		)
 		.setHeading();
 
 	new Setting(containerEl)
-		.setName(t("Exclude specific task markers"))
+		.setName(t("Exclude markers from progress"))
 		.setDesc(
-			t('Specify task markers to exclude from counting. Example: "?|/"'),
+			t(
+				"Symbols to ignore in progress calculations. Separate with |. Example: ?|- (excludes planned and abandoned)",
+			),
 		)
 		.addText((text) =>
 			text
-				.setPlaceholder("")
+				.setPlaceholder("?|-")
 				.setValue(settingTab.plugin.settings.excludeTaskMarks)
 				.onChange(async (value) => {
 					settingTab.plugin.settings.excludeTaskMarks = value;
@@ -430,8 +456,12 @@ export function renderTaskStatusSettingsTab(
 		);
 
 	new Setting(containerEl)
-		.setName(t("Only count specific task markers"))
-		.setDesc(t("Toggle this to only count specific task markers"))
+		.setName(t("Use whitelist mode"))
+		.setDesc(
+			t(
+				"Only count specific markers (ignore all others). Useful for strict progress tracking.",
+			),
+		)
 		.addToggle((toggle) =>
 			toggle
 				.setValue(settingTab.plugin.settings.useOnlyCountMarks)
@@ -447,9 +477,11 @@ export function renderTaskStatusSettingsTab(
 
 	if (settingTab.plugin.settings.useOnlyCountMarks) {
 		new Setting(containerEl)
-			.setName(t("Specific task markers to count"))
+			.setName(t("Whitelist markers"))
 			.setDesc(
-				t('Specify which task markers to count. Example: "x|X|>|/"'),
+				t(
+					"Only these symbols will be counted. Separate with |. Example: (space)|/|x",
+				),
 			)
 			.addText((text) =>
 				text
@@ -468,14 +500,42 @@ export function renderTaskStatusSettingsTab(
 			);
 	}
 
-	// Check Switcher section
-	new Setting(containerEl).setName(t("Checkbox Switcher")).setHeading();
+	// Status Cycling Section - with clear explanation of scope
+	new Setting(containerEl)
+		.setName(t("Status Cycling in Task Genius View"))
+		.setDesc(
+			createFragment((frag) => {
+				frag.appendText(
+					t(
+						"Control click behavior in the Task Genius sidebar panel.",
+					),
+				);
+				frag.createEl("br");
+				frag.createEl("br");
+				const scopeEl = frag.createEl("strong");
+				scopeEl.setText(t("Scope: "));
+				frag.appendText(
+					t(
+						"Clicking tasks in Task Genius View cycles status for both file-based tasks and inline checkboxes. Changes are saved directly to the source file.",
+					),
+				);
+				frag.createEl("br");
+				frag.createEl("br");
+				const learnMore = frag.createEl("a", {
+					text: t("How status cycling works →"),
+					href: "https://taskgenius.md/docs/task-status#cycling-through-statuses",
+				});
+				learnMore.setAttribute("target", "_blank");
+				learnMore.setAttribute("rel", "noopener noreferrer");
+			}),
+		)
+		.setHeading();
 
 	new Setting(containerEl)
-		.setName(t("Enable checkbox status switcher"))
+		.setName(t("Enable click-to-cycle in View"))
 		.setDesc(
 			t(
-				"Enable/disable the ability to cycle through task states by clicking.",
+				"Click checkboxes in Task Genius View to cycle through statuses (e.g., [ ] → [/] → [x]). Affects all task sources.",
 			),
 		)
 		.addToggle((toggle) => {
@@ -493,10 +553,10 @@ export function renderTaskStatusSettingsTab(
 
 	if (settingTab.plugin.settings.enableTaskStatusSwitcher) {
 		new Setting(containerEl)
-			.setName(t("Show indicator with checkbox"))
+			.setName(t("Show status indicator"))
 			.setDesc(
 				t(
-					"Show the status indicator directly next to the checkbox. When enabled, a indicator will be shown next to the checkbox.",
+					"Display a clickable status icon next to the checkbox for easier status identification.",
 				),
 			)
 			.addToggle((toggle) =>
@@ -514,10 +574,10 @@ export function renderTaskStatusSettingsTab(
 
 	if (settingTab.plugin.settings.enableTaskStatusSwitcher) {
 		new Setting(containerEl)
-			.setName(t("Task mark display style"))
+			.setName(t("Visual style"))
 			.setDesc(
 				t(
-					"Choose how task marks are displayed: default checkboxes, custom text marks, or Task Genius icons.",
+					"How checkboxes appear: Standard (default), Text Marks ([TODO]), or Custom Icons.",
 				),
 			)
 			.addDropdown((dropdown) => {
@@ -585,11 +645,41 @@ export function renderTaskStatusSettingsTab(
 		}
 	}
 
+	// Custom Status Workflows Section - Editor behavior
 	new Setting(containerEl)
-		.setName(t("Enable cycle complete status"))
+		.setName(t("Status Cycling in Editor"))
+		.setDesc(
+			createFragment((frag) => {
+				frag.appendText(
+					t(
+						"Control click behavior when editing notes in the Editor.",
+					),
+				);
+				frag.createEl("br");
+				frag.createEl("br");
+				const scopeEl = frag.createEl("strong");
+				scopeEl.setText(t("Scope: "));
+				frag.appendText(
+					t(
+						"Clicking inline checkboxes in Live Preview or Reading mode cycles through your defined status sequences.",
+					),
+				);
+				frag.createEl("br");
+				frag.createEl("br");
+				frag.appendText(
+					t(
+						"Example: [ ] → [/] → [x] (Not Started → In Progress → Done)",
+					),
+				);
+			}),
+		)
+		.setHeading();
+
+	new Setting(containerEl)
+		.setName(t("Enable custom status cycles in Editor"))
 		.setDesc(
 			t(
-				"Enable/disable the ability to automatically cycle through task states when pressing a mark.",
+				"Use custom cycling sequences when clicking checkboxes in the editor. When disabled, clicking toggles between [ ] and [x] only.",
 			),
 		)
 		.addToggle((toggle) => {
@@ -627,10 +717,10 @@ export function renderTaskStatusSettingsTab(
 		}
 
 		new Setting(containerEl)
-			.setName(t("Status Cycles Management"))
+			.setName(t("Status Cycles"))
 			.setDesc(
 				t(
-					"Configure multiple status cycles with different workflows. You can apply preset themes or create custom cycles.",
+					"Create multiple workflow patterns. Each cycle defines a sequence of statuses to cycle through.",
 				),
 			)
 			.addDropdown((dropdown) => {
@@ -779,17 +869,30 @@ export function renderTaskStatusSettingsTab(
 
 	// Auto Date Manager Settings
 	new Setting(containerEl)
-		.setName(t("Auto Date Manager"))
+		.setName(t("Automatic Date Management"))
 		.setDesc(
-			t("Automatically manage dates based on checkbox status changes"),
+			createFragment((frag) => {
+				frag.appendText(
+					t(
+						"Auto-add dates when task status changes (e.g., completion date when marked done).",
+					),
+				);
+				frag.createEl("br");
+				const learnMore = frag.createEl("a", {
+					text: t("Date management guide →"),
+					href: "https://taskgenius.md/docs/append-date",
+				});
+				learnMore.setAttribute("target", "_blank");
+				learnMore.setAttribute("rel", "noopener noreferrer");
+			}),
 		)
 		.setHeading();
 
 	new Setting(containerEl)
-		.setName(t("Enable auto date manager"))
+		.setName(t("Enable automatic dates"))
 		.setDesc(
 			t(
-				"Toggle this to enable automatic date management when checkbox status changes. Dates will be added/removed based on your preferred metadata format (Tasks emoji format or Dataview format).",
+				"Automatically append date metadata to tasks when their status changes. Supports Tasks emoji format and Dataview format.",
 			),
 		)
 		.addToggle((toggle) =>
@@ -806,10 +909,10 @@ export function renderTaskStatusSettingsTab(
 
 	if (settingTab.plugin.settings.autoDateManager.enabled) {
 		new Setting(containerEl)
-			.setName(t("Manage completion dates"))
+			.setName(t("Completion dates"))
 			.setDesc(
 				t(
-					"Automatically add completion dates when tasks are marked as completed, and remove them when changed to other statuses.",
+					"Add completion date (✅) when marked Done. Remove if status changes.",
 				),
 			)
 			.addToggle((toggle) =>
@@ -826,10 +929,10 @@ export function renderTaskStatusSettingsTab(
 			);
 
 		new Setting(containerEl)
-			.setName(t("Manage start dates"))
+			.setName(t("Start dates"))
 			.setDesc(
 				t(
-					"Automatically add start dates when tasks are marked as in progress, and remove them when changed to other statuses.",
+					"Add start date (🛫) when marked In Progress. Remove if status changes.",
 				),
 			)
 			.addToggle((toggle) =>
@@ -846,10 +949,10 @@ export function renderTaskStatusSettingsTab(
 			);
 
 		new Setting(containerEl)
-			.setName(t("Manage cancelled dates"))
+			.setName(t("Cancelled dates"))
 			.setDesc(
 				t(
-					"Automatically add cancelled dates when tasks are marked as abandoned, and remove them when changed to other statuses.",
+					"Add cancelled date (❌) when marked Abandoned. Remove if status changes.",
 				),
 			)
 			.addToggle((toggle) =>
@@ -877,17 +980,17 @@ function renderMultiCycleManagement(
 ) {
 	// Quick Templates section - buttons to add preset cycles
 	new Setting(containerEl)
-		.setName(t("Quick Templates"))
-		.setDesc(t("Quickly add common workflow patterns"))
+		.setName(t("Quick Add Templates"))
+		.setDesc(t("Click to add a pre-configured workflow pattern"))
 		.addButton((button) => {
 			button
-				.setButtonText(t("Add Simple Cycle"))
-				.setTooltip(t("TODO ↔ DONE"))
+				.setButtonText(t("Simple"))
+				.setTooltip(t("[ ] ↔ [x] — Basic toggle"))
 				.onClick(() => {
 					settingTab.plugin.settings.statusCycles!.push({
 						id: `cycle-${Date.now()}`,
 						name: t("Simple"),
-						description: t("Quick TODO/DONE cycle"),
+						description: t("Basic TODO/DONE toggle"),
 						priority:
 							settingTab.plugin.settings.statusCycles!.length,
 						cycle: ["TODO", "DONE"],
@@ -903,19 +1006,18 @@ function renderMultiCycleManagement(
 		})
 		.addButton((button) => {
 			button
-				.setButtonText(t("Add Detailed Cycle"))
-				.setTooltip(t("TODO → PLAN → IN PROGRESS → DONE"))
+				.setButtonText(t("GTD"))
+				.setTooltip(t("[ ] → [/] → [x] — Getting Things Done"))
 				.onClick(() => {
 					settingTab.plugin.settings.statusCycles!.push({
 						id: `cycle-${Date.now()}`,
-						name: t("Detailed"),
-						description: t("Full project workflow"),
+						name: t("GTD"),
+						description: t("Getting Things Done workflow"),
 						priority:
 							settingTab.plugin.settings.statusCycles!.length,
-						cycle: ["TODO", "PLAN", "IN PROGRESS", "DONE"],
+						cycle: ["TODO", "IN PROGRESS", "DONE"],
 						marks: {
 							TODO: " ",
-							PLAN: "?",
 							"IN PROGRESS": "/",
 							DONE: "x",
 						},
@@ -927,22 +1029,21 @@ function renderMultiCycleManagement(
 		})
 		.addButton((button) => {
 			button
-				.setButtonText(t("Add Number Cycle"))
-				.setTooltip(t("1 → 2 → 3 → 4 → 5"))
+				.setButtonText(t("Kanban"))
+				.setTooltip(t("[ ] → [?] → [/] → [x] — Full project flow"))
 				.onClick(() => {
 					settingTab.plugin.settings.statusCycles!.push({
 						id: `cycle-${Date.now()}`,
-						name: t("Progress Tracker"),
-						description: t("Numeric progress tracking"),
+						name: t("Kanban"),
+						description: t("Full project workflow"),
 						priority:
 							settingTab.plugin.settings.statusCycles!.length,
-						cycle: ["1", "2", "3", "4", "5"],
+						cycle: ["TODO", "PLANNED", "IN PROGRESS", "DONE"],
 						marks: {
-							"1": "1",
-							"2": "2",
-							"3": "3",
-							"4": "4",
-							"5": "5",
+							TODO: " ",
+							PLANNED: "?",
+							"IN PROGRESS": "/",
+							DONE: "x",
 						},
 						enabled: true,
 					});

@@ -113,7 +113,7 @@ export function renderProjectSettingsTab(
 		.setName(t("Project Auto-Detection"))
 		.setDesc(
 			t(
-				"Configure how tasks are automatically assigned to projects based on file paths, metadata, or configuration files.",
+				"Configure how tasks are automatically assigned to projects. Detection priority: Task-level metadata > File metadata > Config file > Path mapping > Default naming.",
 			),
 		)
 		.setHeading();
@@ -187,7 +187,7 @@ export function renderProjectSettingsTab(
 		.setName(t("Source 1: Path-based Detection"))
 		.setDesc(
 			t(
-				"Map file paths to project names. Files in matched paths will automatically belong to the specified project.",
+				"Automatically assign projects based on file location. Create rules that map folder paths to project names.",
 			),
 		)
 		.setHeading();
@@ -320,7 +320,7 @@ export function renderProjectSettingsTab(
 		.setName(t("Source 2: Metadata-based Detection"))
 		.setDesc(
 			t(
-				"Read project name from file frontmatter. This has the highest priority among all detection methods.",
+				"Read project information directly from file frontmatter (YAML metadata). Has higher priority than path mapping and config file.",
 			),
 		)
 		.setHeading();
@@ -349,7 +349,7 @@ export function renderProjectSettingsTab(
 		.setName(t("Metadata field name"))
 		.setDesc(
 			t(
-				"The frontmatter field name to read project from. Default is 'project'.",
+				"The frontmatter key to read project from. Use 'project: true' to use filename, or 'project: \"Name\"' for explicit name.",
 			),
 		)
 		.addText((text) => {
@@ -396,7 +396,7 @@ export function renderProjectSettingsTab(
 		.setName(t("Source 3: Config File-based Detection"))
 		.setDesc(
 			t(
-				"Use a special file in each folder to define project settings for all files in that folder.",
+				"Place a configuration file (e.g., project.md) in a folder. All files in that folder will inherit the project defined in the config file's frontmatter.",
 			),
 		)
 		.setHeading();
@@ -465,7 +465,7 @@ export function renderProjectSettingsTab(
 		.setName(t("Advanced: Custom Detection Methods"))
 		.setDesc(
 			t(
-				"Additional methods to detect projects from tags, links, or other metadata fields.",
+				"Configure additional detection methods using tags (#project/name), links ([[Projects/Work]]), or custom metadata fields.",
 			),
 		)
 		.setHeading();
@@ -611,7 +611,7 @@ export function renderProjectSettingsTab(
 		.setName(t("Advanced: Metadata Field Mapping"))
 		.setDesc(
 			t(
-				"Map custom frontmatter fields to standard task properties. Useful for custom naming conventions.",
+				"Map custom frontmatter fields to standard Task Genius properties. Useful for custom naming, i18n, or integrating with existing vault structures.",
 			),
 		)
 		.setHeading();
@@ -769,7 +769,7 @@ export function renderProjectSettingsTab(
 		.setName(t("Fallback: Default Project Naming"))
 		.setDesc(
 			t(
-				"When no project is detected by the above methods, use this strategy to generate a default project name.",
+				"When all detection methods fail, use this fallback strategy to automatically generate a project name from filename, folder name, or metadata.",
 			),
 		)
 		.setHeading();

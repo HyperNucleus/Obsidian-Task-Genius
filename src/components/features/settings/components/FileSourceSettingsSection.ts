@@ -105,7 +105,7 @@ function createRecognitionStrategiesSection(
 		.setName(t("Recognition Strategies"))
 		.setDesc(
 			t(
-				"Configure how files are recognized as tasks. At least one strategy must be enabled.",
+				"Three strategies determine which files become tasks: Metadata (frontmatter fields), Tags (#task), or Path (folder location).",
 			),
 		);
 
@@ -118,7 +118,7 @@ function createRecognitionStrategiesSection(
 		.setName(t("Metadata-based Recognition"))
 		.setDesc(
 			t(
-				"Recognize files as tasks if they have specific frontmatter fields",
+				"Files with specific frontmatter fields (e.g., dueDate, status, priority) are recognized as tasks.",
 			),
 		)
 		.addToggle((toggle) =>
@@ -216,7 +216,11 @@ function createRecognitionStrategiesSection(
 
 	new Setting(tagContainer)
 		.setName(t("Tag-based Recognition"))
-		.setDesc(t("Recognize files as tasks if they have specific tags"))
+		.setDesc(
+			t(
+				"Files with specific tags (e.g., #task, #todo, #actionable) are recognized as tasks.",
+			),
+		)
 		.addToggle((toggle) =>
 			toggle
 				.setValue(config.recognitionStrategies.tags.enabled)
@@ -309,7 +313,11 @@ function createRecognitionStrategiesSection(
 
 	new Setting(pathContainer)
 		.setName(t("Path-based Recognition"))
-		.setDesc(t("Recognize files as tasks based on their file path"))
+		.setDesc(
+			t(
+				"Files in specific folders (e.g., Projects/, Tasks/) are recognized as tasks. Supports prefix, glob, and regex matching.",
+			),
+		)
 		.addToggle((toggle) =>
 			toggle
 				.setValue(config.recognitionStrategies.paths.enabled)
@@ -461,7 +469,11 @@ function createMetadataMappingsSection(
 ): void {
 	new Setting(containerEl)
 		.setName(t("Metadata Mappings"))
-		.setDesc(t("Configure how metadata fields are mapped and transformed"))
+		.setDesc(
+			t(
+				"Map custom frontmatter fields to standard Task Genius properties (status, project, dueDate, etc.).",
+			),
+		)
 		.setHeading();
 
 	const metadataMappingsContainer = containerEl.createDiv({
@@ -469,9 +481,7 @@ function createMetadataMappingsSection(
 	});
 
 	const ensureMappingsArray = () => {
-		if (
-			!Array.isArray(plugin.settings.fileSource.metadataMappings)
-		) {
+		if (!Array.isArray(plugin.settings.fileSource.metadataMappings)) {
 			plugin.settings.fileSource.metadataMappings = [];
 		}
 	};
@@ -495,9 +505,8 @@ function createMetadataMappingsSection(
 		metadataMappingsContainer.empty();
 		ensureMappingsArray();
 
-		const mappings =
-			plugin.settings.fileSource
-				.metadataMappings as MetadataMappingConfig[];
+		const mappings = plugin.settings.fileSource
+			.metadataMappings as MetadataMappingConfig[];
 
 		if (mappings.length === 0) {
 			metadataMappingsContainer.createDiv({
@@ -508,9 +517,7 @@ function createMetadataMappingsSection(
 
 		const usedTargetKeys = new Set(
 			mappings
-				.filter(
-					(mapping) => mapping.enabled && mapping.targetKey,
-				)
+				.filter((mapping) => mapping.enabled && mapping.targetKey)
 				.map((mapping) => mapping.targetKey),
 		);
 
@@ -520,16 +527,13 @@ function createMetadataMappingsSection(
 			});
 
 			const availableTargetKeys = targetOptions.filter(
-				(key) =>
-					!usedTargetKeys.has(key) ||
-					key === mapping.targetKey,
+				(key) => !usedTargetKeys.has(key) || key === mapping.targetKey,
 			);
 
 			new Setting(mappingRow)
 				.setName(`${t("Mapping")} ${index + 1}`)
 				.addText((text) => {
-					text
-						.setPlaceholder(t("Source key (e.g., proj)"))
+					text.setPlaceholder(t("Source key (e.g., proj)"))
 						.setValue(mapping.sourceKey)
 						.onChange(async (value) => {
 							ensureMappingsArray();
@@ -726,7 +730,7 @@ function createStatusMappingSection(
 		.setHeading()
 		.setDesc(
 			t(
-				"Map between human-readable metadata values (e.g., 'completed') and task symbols (e.g., 'x').",
+				"Convert between human-readable metadata values (completed, in-progress) and checkbox symbols (x, /).",
 			),
 		);
 

@@ -1,4 +1,10 @@
-import { Setting, Notice, setIcon, ButtonComponent } from "obsidian";
+import {
+	Setting,
+	Notice,
+	setIcon,
+	ButtonComponent,
+	ExtraButtonComponent,
+} from "obsidian";
 import { TaskProgressBarSettingTab } from "@/setting";
 import { CustomCalendarViewConfig } from "@/common/setting-definition";
 import { t } from "@/translations/helper";
@@ -106,8 +112,8 @@ export function renderCalendarViewSettingsTab(
 			cls: "calendar-template-actions",
 		});
 
-		const createBtn = new ButtonComponent(actionsEl);
-		createBtn.setButtonText(t("Create Custom View"));
+		const createBtn = new ExtraButtonComponent(actionsEl);
+		createBtn.setTooltip(t("Create Custom View"));
 		createBtn.setIcon("plus");
 		createBtn.onClick(() => {
 			openCreateViewModal(settingTab, template.type, () => {

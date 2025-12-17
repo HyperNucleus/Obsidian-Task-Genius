@@ -24,7 +24,7 @@ export function renderIndexSettingsTab(
 		.setName(t("Index & Task Source Configuration"))
 		.setDesc(
 			t(
-				"Configure how Task Genius discovers and indexes tasks from various sources including inline tasks, file metadata, and projects.",
+				"Configure how Task Genius discovers and indexes tasks. Supports two primary sources: Checkbox Tasks (- [ ]) and File Tasks (entire files as tasks).",
 			),
 		)
 		.setHeading();
@@ -103,7 +103,7 @@ export function renderIndexSettingsTab(
 			.setName(t("Enable checkbox tasks"))
 			.setDesc(
 				t(
-					"Index markdown checkbox tasks. Disable this if you only want to use file-based or external task sources.",
+					"Index standard markdown checkbox tasks (- [ ]). Disable if you only want to use File Tasks or external sources.",
 				),
 			)
 			.addToggle((toggle) => {
@@ -144,7 +144,7 @@ export function renderIndexSettingsTab(
 			.setName(t("Prefer metadata format of task"))
 			.setDesc(
 				t(
-					"You can choose dataview format or tasks format, that will influence both index and save format.",
+					"Choose how task metadata is parsed and stored. Dataview: [due:: 2025-01-15]. Tasks: 📅 2025-01-15. The parser tries both as fallback.",
 				),
 			)
 			.addDropdown((dropdown) => {
@@ -168,7 +168,7 @@ export function renderIndexSettingsTab(
 			.setName(t("Enable custom date formats"))
 			.setDesc(
 				t(
-					"Enable custom date format patterns for parsing dates. When enabled, the parser will try your custom formats before falling back to default formats.",
+					"Enable custom date format patterns (e.g., dd/MM/yyyy, yyyyMMdd). Custom formats are tried before defaults.",
 				),
 			)
 			.addToggle((toggle) => {
@@ -535,7 +535,9 @@ export function renderIndexSettingsTab(
 		new Setting(containerEl)
 			.setName(t("File Metadata Inheritance"))
 			.setDesc(
-				t("Configure how tasks inherit metadata from file frontmatter"),
+				t(
+					"Allow tasks to inherit properties (project, priority, context, etc.) from their file's frontmatter when not explicitly set.",
+				),
 			)
 			.setHeading();
 
@@ -717,7 +719,7 @@ export function renderIndexSettingsTab(
 			.setName(t("Enable file tasks"))
 			.setDesc(
 				t(
-					"Allow Task Genius to recognize files as tasks using metadata, tags, or templates.",
+					"Treat entire files as tasks based on metadata, tags, or file paths. Useful for project files or action items as separate notes.",
 				),
 			)
 			.addToggle((toggle) => {
@@ -814,7 +816,11 @@ export function renderIndexSettingsTab(
 	// ========================================
 	new Setting(containerEl)
 		.setName(t("Performance Configuration"))
-		.setDesc(t("Configure performance-related indexing settings"))
+		.setDesc(
+			t(
+				"Optimize indexing for large vaults. Worker processing is recommended for 1000+ files.",
+			),
+		)
 		.setHeading();
 
 	new Setting(containerEl)
@@ -869,7 +875,11 @@ export function renderIndexSettingsTab(
 	// ========================================
 	new Setting(containerEl)
 		.setName(t("Index Maintenance"))
-		.setDesc(t("Tools for managing and rebuilding the task index"))
+		.setDesc(
+			t(
+				"Rebuild the index if tasks appear missing or incorrect. This clears cache and reprocesses all files.",
+			),
+		)
 		.setHeading();
 
 	new Setting(containerEl)

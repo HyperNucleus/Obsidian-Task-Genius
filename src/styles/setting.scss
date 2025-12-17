@@ -404,22 +404,6 @@
 	margin-bottom: var(--size-4-4);
 }
 
-.task-genius-settings .settings-tab-section-header .header-button {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 4px;
-	font-size: var(--font-ui-small);
-}
-
-.task-genius-settings .settings-tab-section-header .header-button-icon {
-	--icon-size: 16px;
-
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
 /* Tab section header visibility rules */
 .task-genius-settings .settings-tab[data-tab-id="general"] {
 	display: none;

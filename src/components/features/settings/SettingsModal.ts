@@ -27,6 +27,7 @@ import {
 	renderTimelineSidebarSettingsTab,
 	renderIndexSettingsTab,
 	IcsSettingsComponent,
+	CalendarSettingsComponent,
 	renderDesktopIntegrationSettingsTab,
 	renderCalendarViewSettingsTab,
 } from "./index";
@@ -189,9 +190,9 @@ export class SettingsModal extends Modal {
 		// Integration & Advanced
 		{
 			id: "calendar-views",
-			name: t("Calendar Views"),
+			name: t("Calendars"),
 			icon: "calendar-range",
-			category: "integration",
+			category: "display",
 		},
 		{
 			id: "ics-integration",
@@ -615,12 +616,13 @@ export class SettingsModal extends Modal {
 				renderCalendarViewSettingsTab(this as any, container);
 				break;
 			case "ics-integration":
-				const icsComponent = new IcsSettingsComponent(
+				// Use new CalendarSettingsComponent with Google/Outlook OAuth support
+				const calendarComponent = new CalendarSettingsComponent(
 					this.plugin,
 					container,
 					() => this.switchToTab("progress-bar"),
 				);
-				icsComponent.display();
+				calendarComponent.display();
 				break;
 			case "desktop-integration":
 				renderDesktopIntegrationSettingsTab(this as any, container);
@@ -689,7 +691,9 @@ export class SettingsModal extends Modal {
 			index: t("Configure task indexing and data sources."),
 			project: t("Set up project detection and management."),
 			"calendar-views": t("Configure calendar view settings."),
-			"ics-integration": t("Sync with external calendars via ICS."),
+			"ics-integration": t(
+				"Connect external calendars to display events alongside your tasks. Supports ICS/iCal URLs, Google Calendar, Outlook, and Apple iCloud.",
+			),
 			"desktop-integration": t(
 				"Configure desktop notifications and tray.",
 			),
