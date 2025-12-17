@@ -55,7 +55,7 @@ describe("ICS Event Time Handling Integration", () => {
 
 	beforeEach(() => {
 		timeParsingService = new TimeParsingService(mockTimeParsingConfig);
-		
+
 		const testSource: IcsSource = {
 			id: "integration-test",
 			name: "Integration Test Calendar",
@@ -79,7 +79,12 @@ describe("ICS Event Time Handling Integration", () => {
 			defaultEventColor: "#3498db",
 		};
 
-		icsManager = new IcsManager(mockConfig, mockPluginSettings, undefined, timeParsingService);
+		icsManager = new IcsManager(
+			mockConfig,
+			mockPluginSettings,
+			undefined,
+			timeParsingService,
+		);
 	});
 
 	test("end-to-end ICS event with time components conversion", () => {
@@ -117,9 +122,9 @@ END:VEVENT
 END:VCALENDAR`;
 
 		// Parse ICS data
-		const testSource = icsManager.getConfig().sources[0];
+		const testSource = icsManager.getConfig().sources[0] as IcsSource;
 		const parseResult = IcsParser.parse(icsData, testSource);
-		
+
 		expect(parseResult.events).toHaveLength(3);
 		expect(parseResult.errors).toHaveLength(0);
 
@@ -128,10 +133,11 @@ END:VCALENDAR`;
 		expect(tasks).toHaveLength(3);
 
 		// Test 1: Timed event with ICS time components
-		const timedTask = tasks.find(t => t.content === "Team Standup");
+		const timedTask = tasks.find((t) => t.content === "Team Standup");
 		expect(timedTask).toBeDefined();
-		
-		const timedMetadata = timedTask!.metadata as EnhancedStandardTaskMetadata;
+
+		const timedMetadata = timedTask!
+			.metadata as EnhancedStandardTaskMetadata;
 		expect(timedMetadata.timeComponents).toBeDefined();
 		expect(timedMetadata.timeComponents?.startTime).toBeDefined();
 		expect(timedMetadata.timeComponents?.endTime).toBeDefined();
@@ -140,19 +146,21 @@ END:VCALENDAR`;
 		expect(timedMetadata.enhancedDates?.endDateTime).toBeDefined();
 
 		// Test 2: All-day event with time parsing from description
-		const workshopTask = tasks.find(t => t.content === "Workshop Day");
+		const workshopTask = tasks.find((t) => t.content === "Workshop Day");
 		expect(workshopTask).toBeDefined();
-		
-		const workshopMetadata = workshopTask!.metadata as EnhancedStandardTaskMetadata;
+
+		const workshopMetadata = workshopTask!
+			.metadata as EnhancedStandardTaskMetadata;
 		// Should have time components parsed from description
 		expect(workshopMetadata.timeComponents).toBeDefined();
 		expect(workshopMetadata.enhancedDates).toBeDefined();
 
 		// Test 3: Event with time in location field
-		const dinnerTask = tasks.find(t => t.content === "Team Dinner");
+		const dinnerTask = tasks.find((t) => t.content === "Team Dinner");
 		expect(dinnerTask).toBeDefined();
-		
-		const dinnerMetadata = dinnerTask!.metadata as EnhancedStandardTaskMetadata;
+
+		const dinnerMetadata = dinnerTask!
+			.metadata as EnhancedStandardTaskMetadata;
 		// Should have time components parsed from location
 		expect(dinnerMetadata.timeComponents).toBeDefined();
 		expect(dinnerMetadata.enhancedDates).toBeDefined();
@@ -171,8 +179,8 @@ END:VCALENDAR`;
 	});
 
 	test("ICS event time preservation with holiday detection", () => {
-		const testSource = icsManager.getConfig().sources[0];
-		
+		const testSource = icsManager.getConfig().sources[0] as IcsSource;
+
 		// Add holiday configuration to source
 		testSource.holidayConfig = {
 			enabled: true,
@@ -206,17 +214,17 @@ END:VCALENDAR`;
 		// Test holiday detection directly on events
 		const events = parseResult.events;
 		const eventsWithHoliday = icsManager.convertEventsWithHolidayToTasks(
-			events.map(event => ({
+			events.map((event) => ({
 				...event,
 				isHoliday: true, // Simulate holiday detection
 				showInForecast: true,
-			}))
+			})),
 		);
 		expect(eventsWithHoliday).toHaveLength(1);
 
 		const task = eventsWithHoliday[0];
 		const metadata = task.metadata as EnhancedStandardTaskMetadata;
-		
+
 		// Should still have time components despite holiday processing
 		expect(metadata.timeComponents).toBeDefined();
 		expect(metadata.timeComponents?.startTime).toBeDefined();
@@ -225,7 +233,7 @@ END:VCALENDAR`;
 	});
 
 	test("error handling in time component extraction", () => {
-		const testSource = icsManager.getConfig().sources[0];
+		const testSource = icsManager.getConfig().sources[0] as IcsSource;
 
 		// ICS data with potential parsing issues
 		const icsData = `BEGIN:VCALENDAR
@@ -248,10 +256,10 @@ END:VCALENDAR`;
 		expect(() => {
 			const tasks = icsManager.convertEventsToTasks(parseResult.events);
 			expect(tasks).toHaveLength(1);
-			
+
 			const task = tasks[0];
 			expect(task.content).toBe("Problematic Event");
-			
+
 			// Should handle gracefully - may or may not have time components
 			// but should not crash
 			const metadata = task.metadata as EnhancedStandardTaskMetadata;

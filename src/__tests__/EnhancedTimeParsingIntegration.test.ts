@@ -1,6 +1,6 @@
 /**
  * Enhanced Time Parsing Integration Tests
- * 
+ *
  * Tests for cross-component functionality including:
  * - End-to-end flow from task creation to timeline display
  * - Time component preservation across task updates
@@ -8,7 +8,10 @@
  * - ICS event integration with enhanced time parsing
  */
 
-import { TimeParsingService, DEFAULT_TIME_PARSING_CONFIG } from "../services/time-parsing-service";
+import {
+	TimeParsingService,
+	DEFAULT_TIME_PARSING_CONFIG,
+} from "../services/time-parsing-service";
 import { FileTaskManagerImpl } from "../managers/file-task-manager";
 import { IcsManager } from "../managers/ics-manager";
 import { IcsParser } from "../parsers/ics-parser";
@@ -69,7 +72,10 @@ interface MockBasesEntry {
 	};
 	lazyEvalCache: Record<string, any>;
 	properties: Record<string, any>;
-	getValue(prop: { type: "property" | "file" | "formula"; name: string }): any;
+	getValue(prop: {
+		type: "property" | "file" | "formula";
+		name: string;
+	}): any;
 	updateProperty(key: string, value: any): void;
 	getFormulaValue(formula: string): any;
 	getPropertyKeys(): string[];
@@ -118,7 +124,11 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 		};
 
 		timeParsingService = new TimeParsingService(enhancedConfig);
-		fileTaskManager = new FileTaskManagerImpl(mockApp, undefined, timeParsingService);
+		fileTaskManager = new FileTaskManagerImpl(
+			mockApp,
+			undefined,
+			timeParsingService,
+		);
 		migrationService = new TaskMigrationService();
 
 		// Initialize ICS manager
@@ -145,7 +155,12 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 			defaultEventColor: "#3498db",
 		};
 
-		icsManager = new IcsManager(icsConfig, mockPluginSettings, undefined, timeParsingService);
+		icsManager = new IcsManager(
+			icsConfig,
+			mockPluginSettings,
+			undefined,
+			timeParsingService,
+		);
 	});
 
 	describe("End-to-End Flow: Task Creation to Timeline Display", () => {
@@ -178,7 +193,8 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 					due: "2025-08-25",
 				},
 				getValue: jest.fn((prop: any) => {
-					if (prop.name === "title") return "Team meeting 14:00-16:00 tomorrow";
+					if (prop.name === "title")
+						return "Team meeting 14:00-16:00 tomorrow";
 					if (prop.name === "status") return " ";
 					if (prop.name === "completed") return false;
 					if (prop.name === "due") return "2025-08-25";
@@ -186,18 +202,25 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 				}),
 				updateProperty: jest.fn(),
 				getFormulaValue: jest.fn(),
-				getPropertyKeys: jest.fn(() => ["title", "status", "completed", "due"]),
+				getPropertyKeys: jest.fn(() => [
+					"title",
+					"status",
+					"completed",
+					"due",
+				]),
 			};
 
 			// Step 2: Convert to file task (simulates task parsing)
 			const fileTask = fileTaskManager.entryToFileTask(mockEntry);
-			
+
 			// Verify task has enhanced metadata
 			expect(fileTask.content).toBe("Team meeting 14:00-16:00 tomorrow");
 			expect(fileTask.metadata.timeComponents).toBeDefined();
 			expect(fileTask.metadata.timeComponents?.startTime?.hour).toBe(14);
 			expect(fileTask.metadata.timeComponents?.endTime?.hour).toBe(16);
-			expect(fileTask.metadata.enhancedDates?.startDateTime).toBeDefined();
+			expect(
+				fileTask.metadata.enhancedDates?.startDateTime,
+			).toBeDefined();
 			expect(fileTask.metadata.enhancedDates?.endDateTime).toBeDefined();
 
 			// Step 3: Create timeline event from task (simulates timeline view processing)
@@ -207,7 +230,8 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 				date: new Date(fileTask.metadata.dueDate!),
 				task: fileTask as any,
 				timeInfo: {
-					primaryTime: fileTask.metadata.enhancedDates!.startDateTime!,
+					primaryTime:
+						fileTask.metadata.enhancedDates!.startDateTime!,
 					endTime: fileTask.metadata.enhancedDates!.endDateTime,
 					isRange: true,
 					timeComponent: fileTask.metadata.timeComponents!.startTime,
@@ -233,8 +257,10 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 				},
 			};
 
-			const events = [timelineEvent, anotherEvent].sort((a, b) => 
-				a.timeInfo!.primaryTime.getTime() - b.timeInfo!.primaryTime.getTime()
+			const events = [timelineEvent, anotherEvent].sort(
+				(a, b) =>
+					a.timeInfo!.primaryTime.getTime() -
+					b.timeInfo!.primaryTime.getTime(),
 			);
 
 			expect(events[0].title).toBe("Earlier meeting");
@@ -244,10 +270,12 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 		test("should handle inline task creation with time components", () => {
 			// Simulate inline task parsing
 			const inlineTaskText = "- [ ] Call client at 3:30 PM 📅 2025-08-25";
-			
+
 			// Parse time components from inline task
-			const parseResult = timeParsingService.parseTimeExpressions(inlineTaskText) as EnhancedParsedTimeResult;
-			
+			const parseResult = timeParsingService.parseTimeExpressions(
+				inlineTaskText,
+			) as EnhancedParsedTimeResult;
+
 			expect(parseResult.timeComponents.scheduledTime).toBeDefined();
 			expect(parseResult.timeComponents.scheduledTime?.hour).toBe(15);
 			expect(parseResult.timeComponents.scheduledTime?.minute).toBe(30);
@@ -273,9 +301,15 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 			};
 
 			// Verify enhanced metadata
-			expect(inlineTask.metadata.timeComponents?.scheduledTime?.hour).toBe(15);
-			expect(inlineTask.metadata.enhancedDates?.dueDateTime?.getHours()).toBe(15);
-			expect(inlineTask.metadata.enhancedDates?.dueDateTime?.getMinutes()).toBe(30);
+			expect(
+				inlineTask.metadata.timeComponents?.scheduledTime?.hour,
+			).toBe(15);
+			expect(
+				inlineTask.metadata.enhancedDates?.dueDateTime?.getHours(),
+			).toBe(15);
+			expect(
+				inlineTask.metadata.enhancedDates?.dueDateTime?.getMinutes(),
+			).toBe(30);
 
 			// Create timeline event
 			const timelineEvent: MockTimelineEvent = {
@@ -284,9 +318,11 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 				date: new Date(inlineTask.metadata.dueDate!),
 				task: inlineTask,
 				timeInfo: {
-					primaryTime: inlineTask.metadata.enhancedDates!.dueDateTime!,
+					primaryTime:
+						inlineTask.metadata.enhancedDates!.dueDateTime!,
 					isRange: false,
-					timeComponent: inlineTask.metadata.timeComponents!.scheduledTime,
+					timeComponent:
+						inlineTask.metadata.timeComponents!.scheduledTime,
 					displayFormat: "date-time",
 				},
 			};
@@ -325,20 +361,27 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 					completed: false,
 				},
 				getValue: jest.fn((prop: any) => {
-					if (prop.name === "title") return "Doctor appointment at 2:00 PM";
+					if (prop.name === "title")
+						return "Doctor appointment at 2:00 PM";
 					if (prop.name === "status") return " ";
 					if (prop.name === "completed") return false;
 					return undefined;
 				}),
 				updateProperty: jest.fn(),
 				getFormulaValue: jest.fn(),
-				getPropertyKeys: jest.fn(() => ["title", "status", "completed"]),
+				getPropertyKeys: jest.fn(() => [
+					"title",
+					"status",
+					"completed",
+				]),
 			};
 
 			const originalTask = fileTaskManager.entryToFileTask(mockEntry);
-			
+
 			// Verify original time component
-			expect(originalTask.metadata.timeComponents?.scheduledTime?.hour).toBe(14);
+			expect(
+				originalTask.metadata.timeComponents?.scheduledTime?.hour,
+			).toBe(14);
 
 			// Update task content with new time
 			await fileTaskManager.updateFileTask(originalTask, {
@@ -346,8 +389,12 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 			});
 
 			// Verify time component was updated
-			expect(originalTask.metadata.timeComponents?.scheduledTime?.hour).toBe(16);
-			expect(originalTask.metadata.timeComponents?.scheduledTime?.minute).toBe(30);
+			expect(
+				originalTask.metadata.timeComponents?.scheduledTime?.hour,
+			).toBe(16);
+			expect(
+				originalTask.metadata.timeComponents?.scheduledTime?.minute,
+			).toBe(30);
 		});
 
 		test("should preserve time components when completing tasks", () => {
@@ -396,10 +443,18 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 			};
 
 			// Verify time components are preserved
-			expect(completedTask.metadata.timeComponents?.startTime?.hour).toBe(9);
-			expect(completedTask.metadata.timeComponents?.endTime?.hour).toBe(17);
-			expect(completedTask.metadata.enhancedDates?.startDateTime?.getHours()).toBe(9);
-			expect(completedTask.metadata.enhancedDates?.endDateTime?.getHours()).toBe(17);
+			expect(completedTask.metadata.timeComponents?.startTime?.hour).toBe(
+				9,
+			);
+			expect(completedTask.metadata.timeComponents?.endTime?.hour).toBe(
+				17,
+			);
+			expect(
+				completedTask.metadata.enhancedDates?.startDateTime?.getHours(),
+			).toBe(9);
+			expect(
+				completedTask.metadata.enhancedDates?.endDateTime?.getHours(),
+			).toBe(17);
 		});
 
 		test("should handle task status changes while preserving time data", () => {
@@ -446,9 +501,15 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 			};
 
 			// Verify time components preserved through all status changes
-			expect(inProgressTask.metadata.timeComponents?.scheduledTime?.hour).toBe(15);
-			expect(completedTask.metadata.timeComponents?.scheduledTime?.hour).toBe(15);
-			expect(completedTask.metadata.enhancedDates?.scheduledDateTime?.getHours()).toBe(15);
+			expect(
+				inProgressTask.metadata.timeComponents?.scheduledTime?.hour,
+			).toBe(15);
+			expect(
+				completedTask.metadata.timeComponents?.scheduledTime?.hour,
+			).toBe(15);
+			expect(
+				completedTask.metadata.enhancedDates?.scheduledDateTime?.getHours(),
+			).toBe(15);
 		});
 	});
 
@@ -471,13 +532,18 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 			};
 
 			// Migrate to enhanced metadata
-			const migratedTask = migrationService.migrateTaskToEnhanced(legacyTask);
+			const migratedTask =
+				migrationService.migrateTaskToEnhanced(legacyTask);
 
 			// Should preserve all original data
 			expect(migratedTask.id).toBe(legacyTask.id);
 			expect(migratedTask.content).toBe(legacyTask.content);
-			expect(migratedTask.metadata.dueDate).toBe(legacyTask.metadata.dueDate);
-			expect(migratedTask.metadata.tags).toEqual(legacyTask.metadata.tags);
+			expect(migratedTask.metadata.dueDate).toBe(
+				legacyTask.metadata.dueDate,
+			);
+			expect(migratedTask.metadata.tags).toEqual(
+				legacyTask.metadata.tags,
+			);
 
 			// Should not have time components (no time in content)
 			expect(migratedTask.metadata.timeComponents).toBeUndefined();
@@ -502,19 +568,28 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 			};
 
 			// Migrate to enhanced metadata
-			const migratedTask = migrationService.migrateTaskToEnhanced(legacyTaskWithTime);
+			const migratedTask =
+				migrationService.migrateTaskToEnhanced(legacyTaskWithTime);
 
 			// Should preserve original data
 			expect(migratedTask.content).toBe(legacyTaskWithTime.content);
-			expect(migratedTask.metadata.dueDate).toBe(legacyTaskWithTime.metadata.dueDate);
+			expect(migratedTask.metadata.dueDate).toBe(
+				legacyTaskWithTime.metadata.dueDate,
+			);
 
 			// Should add time components from parsing
 			expect(migratedTask.metadata.timeComponents).toBeDefined();
-			expect(migratedTask.metadata.timeComponents?.scheduledTime?.hour).toBe(14);
-			expect(migratedTask.metadata.timeComponents?.scheduledTime?.minute).toBe(30);
+			expect(
+				migratedTask.metadata.timeComponents?.scheduledTime?.hour,
+			).toBe(14);
+			expect(
+				migratedTask.metadata.timeComponents?.scheduledTime?.minute,
+			).toBe(30);
 
 			// Should create enhanced datetime
-			expect(migratedTask.metadata.enhancedDates?.scheduledDateTime).toBeDefined();
+			expect(
+				migratedTask.metadata.enhancedDates?.scheduledDateTime,
+			).toBeDefined();
 		});
 
 		test("should handle mixed task collections (with and without time)", () => {
@@ -542,15 +617,17 @@ describe("Enhanced Time Parsing Integration Tests", () => {
 			];
 
 			// Migrate all tasks
-			const migratedTasks = mixedTasks.map(task => 
-				migrationService.migrateTaskToEnhanced(task)
+			const migratedTasks = mixedTasks.map((task) =>
+				migrationService.migrateTaskToEnhanced(task),
 			);
 
 			// First task should not have time components
 			expect(migratedTasks[0].metadata.timeComponents).toBeUndefined();
 
 			// Second task should have time components
-			expect(migratedTasks[1].metadata.timeComponents?.scheduledTime?.hour).toBe(15);
+			expect(
+				migratedTasks[1].metadata.timeComponents?.scheduledTime?.hour,
+			).toBe(15);
 
 			// Both should be valid enhanced tasks
 			expect(migratedTasks[0].id).toBe("no-time-task");
@@ -574,9 +651,9 @@ STATUS:CONFIRMED
 END:VEVENT
 END:VCALENDAR`;
 
-			const testSource = icsManager.getConfig().sources[0];
+			const testSource = icsManager.getConfig().sources[0] as IcsSource;
 			const parseResult = IcsParser.parse(icsData, testSource);
-			
+
 			expect(parseResult.events).toHaveLength(1);
 
 			// Convert to tasks
@@ -616,10 +693,10 @@ STATUS:CONFIRMED
 END:VEVENT
 END:VCALENDAR`;
 
-			const testSource = icsManager.getConfig().sources[0];
+			const testSource = icsManager.getConfig().sources[0] as IcsSource;
 			const parseResult = IcsParser.parse(icsData, testSource);
 			const tasks = icsManager.convertEventsToTasks(parseResult.events);
-			
+
 			const task = tasks[0];
 			const metadata = task.metadata as EnhancedStandardTaskMetadata;
 
@@ -629,7 +706,9 @@ END:VCALENDAR`;
 			// Should have time components parsed from description
 			expect(metadata.timeComponents).toBeDefined();
 			// Should find the first time mentioned (9:00 AM)
-			const timeComponent = metadata.timeComponents?.startTime || metadata.timeComponents?.scheduledTime;
+			const timeComponent =
+				metadata.timeComponents?.startTime ||
+				metadata.timeComponents?.scheduledTime;
 			expect(timeComponent?.hour).toBe(9);
 		});
 
@@ -647,16 +726,18 @@ STATUS:CONFIRMED
 END:VEVENT
 END:VCALENDAR`;
 
-			const testSource = icsManager.getConfig().sources[0];
+			const testSource = icsManager.getConfig().sources[0] as IcsSource;
 			const parseResult = IcsParser.parse(icsData, testSource);
 			const tasks = icsManager.convertEventsToTasks(parseResult.events);
-			
+
 			const task = tasks[0];
 			const metadata = task.metadata as EnhancedStandardTaskMetadata;
 
 			// Should parse time from location field
 			expect(metadata.timeComponents).toBeDefined();
-			const timeComponent = metadata.timeComponents?.scheduledTime || metadata.timeComponents?.dueTime;
+			const timeComponent =
+				metadata.timeComponents?.scheduledTime ||
+				metadata.timeComponents?.dueTime;
 			expect(timeComponent?.hour).toBe(19); // 7:30 PM
 			expect(timeComponent?.minute).toBe(30);
 		});
@@ -675,10 +756,10 @@ STATUS:CONFIRMED
 END:VEVENT
 END:VCALENDAR`;
 
-			const testSource = icsManager.getConfig().sources[0];
+			const testSource = icsManager.getConfig().sources[0] as IcsSource;
 			const parseResult = IcsParser.parse(icsData, testSource);
 			const tasks = icsManager.convertEventsToTasks(parseResult.events);
-			
+
 			const task = tasks[0];
 
 			// Should maintain all ICS properties
@@ -703,7 +784,7 @@ END:VCALENDAR`;
 		test("should handle large numbers of tasks efficiently", () => {
 			const startTime = Date.now();
 			const taskCount = 100;
-			
+
 			// Create many tasks with time information
 			const tasks: Task[] = [];
 			for (let i = 0; i < taskCount; i++) {
@@ -721,8 +802,8 @@ END:VCALENDAR`;
 			}
 
 			// Migrate all tasks
-			const migratedTasks = tasks.map(task => 
-				migrationService.migrateTaskToEnhanced(task)
+			const migratedTasks = tasks.map((task) =>
+				migrationService.migrateTaskToEnhanced(task),
 			);
 
 			const endTime = Date.now();
@@ -733,7 +814,9 @@ END:VCALENDAR`;
 			expect(migratedTasks).toHaveLength(taskCount);
 
 			// Verify some tasks have time components
-			const tasksWithTime = migratedTasks.filter(t => t.metadata.timeComponents);
+			const tasksWithTime = migratedTasks.filter(
+				(t) => t.metadata.timeComponents,
+			);
 			expect(tasksWithTime.length).toBeGreaterThan(0);
 		});
 
@@ -774,17 +857,23 @@ END:VCALENDAR`;
 
 			// Should not throw errors during migration
 			expect(() => {
-				const migratedTasks = problematicTasks.map(task => 
-					migrationService.migrateTaskToEnhanced(task)
+				const migratedTasks = problematicTasks.map((task) =>
+					migrationService.migrateTaskToEnhanced(task),
 				);
 
 				// All tasks should be migrated (even if without time components)
 				expect(migratedTasks).toHaveLength(3);
 
 				// Tasks with invalid time should not have time components
-				expect(migratedTasks[0].metadata.timeComponents).toBeUndefined();
-				expect(migratedTasks[1].metadata.timeComponents).toBeUndefined();
-				expect(migratedTasks[2].metadata.timeComponents).toBeUndefined();
+				expect(
+					migratedTasks[0].metadata.timeComponents,
+				).toBeUndefined();
+				expect(
+					migratedTasks[1].metadata.timeComponents,
+				).toBeUndefined();
+				expect(
+					migratedTasks[2].metadata.timeComponents,
+				).toBeUndefined();
 
 				// But should preserve other metadata
 				expect(migratedTasks[0].id).toBe("invalid-time-1");
