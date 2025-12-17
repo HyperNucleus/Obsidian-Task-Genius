@@ -59,7 +59,7 @@ export class IcsSource {
 	 */
 	private subscribeToIcsUpdates(): void {
 		// Listen for ICS cache updates
-		this.app.workspace.on("ics-cache-updated" as any, () => {
+		this.app.workspace.on("task-genius:ics-cache-updated", () => {
 			console.log("[IcsSource] ICS cache updated, reloading events...");
 			this.loadAndEmitIcsEvents();
 		});

@@ -1,13 +1,28 @@
 /**
  * ICS (iCalendar) support types and interfaces
+ *
+ * This module contains the core ICS types that are used throughout the plugin.
+ * For the new multi-provider calendar system, see `./calendar-provider.ts`.
+ *
+ * The IcsSource interface is maintained for backward compatibility.
+ * New calendar sources should use CalendarSource from calendar-provider.ts.
  */
 
 import { Task } from "./task";
+import type {
+	CalendarProviderType,
+	AnyCalendarSource,
+} from "./calendar-provider";
 
 /** ICS event source configuration */
 export interface IcsSource {
 	/** Unique identifier for the ICS source */
 	id: string;
+	/**
+	 * Provider type discriminator
+	 * @default 'url-ics' - For backward compatibility with legacy sources
+	 */
+	type?: CalendarProviderType;
 	/** Display name for the source */
 	name: string;
 	/** URL to the ICS file (supports http://, https://, and webcal:// protocols) */
@@ -231,14 +246,55 @@ export interface IcsEvent {
 	customProperties?: Record<string, string>;
 	/** Source ICS configuration */
 	source: IcsSource;
+
+	// =========================================================================
+	// Sync Metadata (for two-way sync with OAuth providers)
+	// =========================================================================
+
+	/**
+	 * Provider-specific event ID (different from ICS uid)
+	 * - Google: event.id
+	 * - Outlook: event.id
+	 * - Apple: derived from URL path
+	 */
+	providerEventId?: string;
+
+	/**
+	 * Calendar ID where this event belongs
+	 * - Google: calendarId
+	 * - Outlook: calendar.id
+	 * - Apple: calendar href
+	 */
+	providerCalendarId?: string;
+
+	/**
+	 * ETag for conflict detection (optimistic locking)
+	 * Used to detect if remote event was modified since last fetch
+	 */
+	etag?: string;
+
+	/**
+	 * Whether this event can be edited (provider supports write + user has permission)
+	 */
+	canEdit?: boolean;
+
+	/**
+	 * For recurring events, the ID of the parent recurring event
+	 */
+	recurringEventId?: string;
+
+	/**
+	 * Whether this is a single instance of a recurring event
+	 */
+	isRecurringInstance?: boolean;
 }
 
 /** ICS event converted to Task format */
 export interface IcsTask extends Task {
 	/** Original ICS event data */
 	icsEvent: IcsEvent;
-	/** Whether this task is read-only (from ICS) */
-	readonly: true;
+	/** Whether this task is read-only (true for URL ICS, false for writable OAuth providers) */
+	readonly: boolean;
 	/** Whether this task is a badge */
 	badge: boolean;
 	/** Source information */
@@ -246,6 +302,8 @@ export interface IcsTask extends Task {
 		type: "ics";
 		name: string;
 		id: string;
+		/** Provider type for determining write capability */
+		providerType?: "url-ics" | "google" | "outlook" | "apple-caldav";
 	};
 }
 
@@ -306,8 +364,12 @@ export interface IcsCacheEntry {
 
 /** ICS manager configuration */
 export interface IcsManagerConfig {
-	/** List of ICS sources */
-	sources: IcsSource[];
+	/**
+	 * List of calendar sources (supports all provider types)
+	 * Uses AnyCalendarSource to accept both legacy IcsSource and new CalendarSource formats
+	 * Call normalizeCalendarSources() when reading to ensure consistent format
+	 */
+	sources: AnyCalendarSource[];
 	/** Global refresh interval in minutes */
 	globalRefreshInterval: number;
 	/** Maximum cache age in hours */

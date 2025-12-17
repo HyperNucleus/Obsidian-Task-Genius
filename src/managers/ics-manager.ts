@@ -15,7 +15,21 @@ import {
 	IcsTextReplacement,
 	IcsEventWithHoliday,
 } from "../types/ics";
-import { Task, ExtendedMetadata, EnhancedStandardTaskMetadata } from "../types/task";
+import {
+	AnyCalendarSource,
+	LegacyIcsSource,
+	UrlIcsSourceConfig,
+	isUrlIcsSource,
+	isGoogleSource,
+	isOutlookSource,
+	isAppleSource,
+	CalendarSource,
+} from "../types/calendar-provider";
+import {
+	Task,
+	ExtendedMetadata,
+	EnhancedStandardTaskMetadata,
+} from "../types/task";
 import { IcsParser } from "../parsers/ics-parser";
 import { HolidayDetector } from "../parsers/holiday-detector";
 import { StatusMapper } from "../parsers/ics-status-mapper";
@@ -24,6 +38,12 @@ import { TaskProgressBarSettings } from "../common/setting-definition";
 import { TimeParsingService } from "../services/time-parsing-service";
 import { TimeComponent } from "../types/time-parsing";
 import TaskProgressBarPlugin from "src";
+import { CalendarAuthManager } from "./calendar-auth-manager";
+import {
+	CalendarSourceManager,
+	WriteResult,
+	UpdateEventOptions,
+} from "../providers/index";
 
 export class IcsManager extends Component {
 	private config: IcsManagerConfig;
@@ -33,6 +53,7 @@ export class IcsManager extends Component {
 	private onEventsUpdated?: (sourceId: string, events: IcsEvent[]) => void;
 	private pluginSettings: TaskProgressBarSettings;
 	private timeParsingService?: TimeParsingService;
+	private calendarSourceManager?: CalendarSourceManager;
 
 	private plugin?: TaskProgressBarPlugin;
 
@@ -41,12 +62,43 @@ export class IcsManager extends Component {
 		pluginSettings: TaskProgressBarSettings,
 		plugin?: TaskProgressBarPlugin,
 		timeParsingService?: TimeParsingService,
+		authManager?: CalendarAuthManager,
 	) {
 		super();
 		this.config = config;
 		this.pluginSettings = pluginSettings;
 		this.plugin = plugin;
 		this.timeParsingService = timeParsingService;
+
+		// Initialize CalendarSourceManager for OAuth providers
+		if (authManager) {
+			this.calendarSourceManager = new CalendarSourceManager(authManager);
+		}
+	}
+
+	/**
+	 * Check if a source is a URL-based ICS source (legacy or new format)
+	 * These are the only sources this manager can fetch directly
+	 */
+	private isUrlBasedSource(
+		source: AnyCalendarSource,
+	): source is IcsSource | LegacyIcsSource | UrlIcsSourceConfig {
+		return "url" in source && typeof source.url === "string";
+	}
+
+	/**
+	 * Get URL-based sources from configuration
+	 */
+	private getUrlBasedSources(): (
+		| IcsSource
+		| LegacyIcsSource
+		| UrlIcsSourceConfig
+	)[] {
+		return this.config.sources.filter((s) => this.isUrlBasedSource(s)) as (
+			| IcsSource
+			| LegacyIcsSource
+			| UrlIcsSourceConfig
+		)[];
 	}
 
 	/**
@@ -157,6 +209,7 @@ export class IcsManager extends Component {
 			console.log("source", source, "sourceId", sourceId);
 			console.log("cacheEntry events count", cacheEntry.events.length);
 
+			// Process all enabled sources (URL-based and OAuth-based)
 			if (source?.enabled) {
 				console.log("Source is enabled, applying filters");
 				// Apply filters if configured
@@ -201,6 +254,7 @@ export class IcsManager extends Component {
 			);
 			console.log("Cache entry events count:", cacheEntry.events.length);
 
+			// Process all enabled sources (URL-based and OAuth-based)
 			if (source?.enabled) {
 				// Apply filters first
 				const filteredEvents = this.applyFilters(
@@ -210,13 +264,17 @@ export class IcsManager extends Component {
 
 				console.log("Filtered events count:", filteredEvents.length);
 
-				// Apply holiday detection if configured
+				// Apply holiday detection if configured (only available on URL/legacy sources)
 				let processedEvents: IcsEventWithHoliday[];
-				if (source.holidayConfig?.enabled) {
+				const holidayConfig =
+					"holidayConfig" in source
+						? source.holidayConfig
+						: undefined;
+				if (holidayConfig?.enabled) {
 					processedEvents =
 						HolidayDetector.processEventsWithHolidayDetection(
 							filteredEvents,
-							source.holidayConfig,
+							holidayConfig,
 						);
 				} else {
 					// Convert to IcsEventWithHoliday format without holiday detection
@@ -323,6 +381,7 @@ export class IcsManager extends Component {
 		const cacheEntry = this.cache.get(sourceId);
 		const source = this.config.sources.find((s) => s.id === sourceId);
 
+		// Handle all enabled sources
 		if (!cacheEntry || !source?.enabled) {
 			return [];
 		}
@@ -387,7 +446,7 @@ export class IcsManager extends Component {
 				project: event.source.name,
 				context: processedEvent.location,
 				heading: [],
-				
+
 				// Enhanced time components
 				...enhancedMetadata,
 			},
@@ -397,12 +456,15 @@ export class IcsManager extends Component {
 				description: processedEvent.description,
 				location: processedEvent.location,
 			},
-			readonly: true,
+			// OAuth providers (Google, Outlook, Apple) support two-way sync; URL ICS is read-only
+			readonly: !this.isOAuthSource(event.source as AnyCalendarSource),
 			badge: event.source.showType === "badge",
 			source: {
 				type: "ics",
 				name: event.source.name,
 				id: event.source.id,
+				providerType:
+					(event.source as AnyCalendarSource).type || "url-ics",
 			},
 		};
 
@@ -416,7 +478,7 @@ export class IcsManager extends Component {
 		event: IcsEventWithHoliday,
 	): Task<ExtendedMetadata> & {
 		icsEvent: IcsEvent;
-		readonly: true;
+		readonly: boolean;
 		badge: boolean;
 		source: { type: "ics"; name: string; id: string };
 	} {
@@ -466,7 +528,7 @@ export class IcsManager extends Component {
 				project: event.source.name,
 				context: processedEvent.location,
 				heading: [],
-				
+
 				// Enhanced time components
 				...enhancedMetadata,
 			} as any, // Use any to allow additional holiday fields
@@ -476,12 +538,15 @@ export class IcsManager extends Component {
 				description: processedEvent.description,
 				location: processedEvent.location,
 			},
-			readonly: true,
+			// OAuth providers (Google, Outlook, Apple) support two-way sync; URL ICS is read-only
+			readonly: !this.isOAuthSource(event.source as AnyCalendarSource),
 			badge: event.source.showType === "badge",
 			source: {
 				type: "ics",
 				name: event.source.name,
 				id: event.source.id,
+				providerType:
+					(event.source as AnyCalendarSource).type || "url-ics",
 			},
 		};
 
@@ -493,7 +558,7 @@ export class IcsManager extends Component {
 	 */
 	private extractTimeComponentsFromIcsEvent(
 		event: IcsEvent,
-		processedEvent: IcsEvent
+		processedEvent: IcsEvent,
 	): Partial<EnhancedStandardTaskMetadata> {
 		if (!this.timeParsingService) {
 			return {};
@@ -501,11 +566,14 @@ export class IcsManager extends Component {
 
 		try {
 			// Create time components from ICS event times
-			const timeComponents: EnhancedStandardTaskMetadata["timeComponents"] = {};
+			const timeComponents: EnhancedStandardTaskMetadata["timeComponents"] =
+				{};
 
 			// Extract time from ICS dtstart (start time)
 			if (event.dtstart && !event.allDay) {
-				const startTimeComponent = this.createTimeComponentFromDate(event.dtstart);
+				const startTimeComponent = this.createTimeComponentFromDate(
+					event.dtstart,
+				);
 				if (startTimeComponent) {
 					timeComponents.startTime = startTimeComponent;
 					timeComponents.scheduledTime = startTimeComponent; // ICS events are typically scheduled
@@ -514,29 +582,39 @@ export class IcsManager extends Component {
 
 			// Extract time from ICS dtend (end time)
 			if (event.dtend && !event.allDay) {
-				const endTimeComponent = this.createTimeComponentFromDate(event.dtend);
+				const endTimeComponent = this.createTimeComponentFromDate(
+					event.dtend,
+				);
 				if (endTimeComponent) {
 					timeComponents.endTime = endTimeComponent;
 					timeComponents.dueTime = endTimeComponent; // End time can be considered due time
-					
+
 					// Create range relationship if both start and end exist
 					if (timeComponents.startTime) {
 						timeComponents.startTime.isRange = true;
-						timeComponents.startTime.rangePartner = endTimeComponent;
+						timeComponents.startTime.rangePartner =
+							endTimeComponent;
 						endTimeComponent.isRange = true;
-						endTimeComponent.rangePartner = timeComponents.startTime;
+						endTimeComponent.rangePartner =
+							timeComponents.startTime;
 					}
 				}
 			}
 
 			// Also parse time components from event description and summary if available
-			let descriptionTimeComponents: EnhancedStandardTaskMetadata["timeComponents"] = {};
-			const textToParse = [processedEvent.summary, processedEvent.description, processedEvent.location]
+			let descriptionTimeComponents: EnhancedStandardTaskMetadata["timeComponents"] =
+				{};
+			const textToParse = [
+				processedEvent.summary,
+				processedEvent.description,
+				processedEvent.location,
+			]
 				.filter(Boolean)
-				.join(' ');
-			
+				.join(" ");
+
 			if (textToParse.trim()) {
-				const { timeComponents: parsedComponents } = this.timeParsingService.parseTimeComponents(textToParse);
+				const { timeComponents: parsedComponents } =
+					this.timeParsingService.parseTimeComponents(textToParse);
 				descriptionTimeComponents = parsedComponents;
 			}
 
@@ -548,7 +626,10 @@ export class IcsManager extends Component {
 			};
 
 			// Create enhanced datetime objects
-			const enhancedDates = this.createEnhancedDateTimesFromIcs(event, mergedTimeComponents);
+			const enhancedDates = this.createEnhancedDateTimesFromIcs(
+				event,
+				mergedTimeComponents,
+			);
 
 			const enhancedMetadata: Partial<EnhancedStandardTaskMetadata> = {};
 
@@ -562,7 +643,10 @@ export class IcsManager extends Component {
 
 			return enhancedMetadata;
 		} catch (error) {
-			console.error(`[IcsManager] Failed to extract time components from ICS event ${event.uid}:`, error);
+			console.error(
+				`[IcsManager] Failed to extract time components from ICS event ${event.uid}:`,
+				error,
+			);
 			return {};
 		}
 	}
@@ -576,13 +660,13 @@ export class IcsManager extends Component {
 		}
 
 		// Format time as HH:MM or HH:MM:SS depending on whether seconds are present
-		const hours = date.getUTCHours().toString().padStart(2, '0');
-		const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+		const hours = date.getUTCHours().toString().padStart(2, "0");
+		const minutes = date.getUTCMinutes().toString().padStart(2, "0");
 		const seconds = date.getUTCSeconds();
-		
+
 		let originalText = `${hours}:${minutes}`;
 		if (seconds > 0) {
-			originalText += `:${seconds.toString().padStart(2, '0')}`;
+			originalText += `:${seconds.toString().padStart(2, "0")}`;
 		}
 
 		return {
@@ -599,7 +683,7 @@ export class IcsManager extends Component {
 	 */
 	private createEnhancedDateTimesFromIcs(
 		event: IcsEvent,
-		timeComponents: EnhancedStandardTaskMetadata["timeComponents"]
+		timeComponents: EnhancedStandardTaskMetadata["timeComponents"],
 	): EnhancedStandardTaskMetadata["enhancedDates"] {
 		const enhancedDates: EnhancedStandardTaskMetadata["enhancedDates"] = {};
 
@@ -618,41 +702,65 @@ export class IcsManager extends Component {
 		// try to combine the date from ICS with the parsed time components
 		if (event.allDay && timeComponents) {
 			const eventDate = new Date(event.dtstart);
-			
+
 			if (timeComponents.startTime) {
 				const startDateTime = new Date(eventDate);
-				startDateTime.setHours(timeComponents.startTime.hour, timeComponents.startTime.minute, timeComponents.startTime.second || 0);
+				startDateTime.setHours(
+					timeComponents.startTime.hour,
+					timeComponents.startTime.minute,
+					timeComponents.startTime.second || 0,
+				);
 				enhancedDates.startDateTime = startDateTime;
 				enhancedDates.scheduledDateTime = startDateTime;
 			}
-			
+
 			if (timeComponents.endTime) {
 				const endDateTime = new Date(eventDate);
-				endDateTime.setHours(timeComponents.endTime.hour, timeComponents.endTime.minute, timeComponents.endTime.second || 0);
-				
+				endDateTime.setHours(
+					timeComponents.endTime.hour,
+					timeComponents.endTime.minute,
+					timeComponents.endTime.second || 0,
+				);
+
 				// Handle midnight crossing for time ranges
-				if (timeComponents.startTime && timeComponents.endTime.hour < timeComponents.startTime.hour) {
+				if (
+					timeComponents.startTime &&
+					timeComponents.endTime.hour < timeComponents.startTime.hour
+				) {
 					endDateTime.setDate(endDateTime.getDate() + 1);
 				}
-				
+
 				enhancedDates.endDateTime = endDateTime;
 				enhancedDates.dueDateTime = endDateTime;
 			}
-			
+
 			if (timeComponents.dueTime && !enhancedDates.dueDateTime) {
 				const dueDateTime = new Date(eventDate);
-				dueDateTime.setHours(timeComponents.dueTime.hour, timeComponents.dueTime.minute, timeComponents.dueTime.second || 0);
+				dueDateTime.setHours(
+					timeComponents.dueTime.hour,
+					timeComponents.dueTime.minute,
+					timeComponents.dueTime.second || 0,
+				);
 				enhancedDates.dueDateTime = dueDateTime;
 			}
-			
-			if (timeComponents.scheduledTime && !enhancedDates.scheduledDateTime) {
+
+			if (
+				timeComponents.scheduledTime &&
+				!enhancedDates.scheduledDateTime
+			) {
 				const scheduledDateTime = new Date(eventDate);
-				scheduledDateTime.setHours(timeComponents.scheduledTime.hour, timeComponents.scheduledTime.minute, timeComponents.scheduledTime.second || 0);
+				scheduledDateTime.setHours(
+					timeComponents.scheduledTime.hour,
+					timeComponents.scheduledTime.minute,
+					timeComponents.scheduledTime.second || 0,
+				);
 				enhancedDates.scheduledDateTime = scheduledDateTime;
 			}
 		}
 
-		return Object.keys(enhancedDates).length > 0 ? enhancedDates : undefined;
+		return Object.keys(enhancedDates).length > 0
+			? enhancedDates
+			: undefined;
 	}
 
 	/**
@@ -689,12 +797,42 @@ export class IcsManager extends Component {
 	}
 
 	/**
+	 * Check if a source is an OAuth-based source (Google, Outlook, Apple)
+	 */
+	private isOAuthSource(source: AnyCalendarSource): boolean {
+		return (
+			isGoogleSource(source as CalendarSource) ||
+			isOutlookSource(source as CalendarSource) ||
+			isAppleSource(source as CalendarSource)
+		);
+	}
+
+	/**
 	 * Manually sync a specific source
 	 */
 	async syncSource(sourceId: string): Promise<IcsFetchResult> {
 		const source = this.config.sources.find((s) => s.id === sourceId);
 		if (!source) {
 			throw new Error(`Source not found: ${sourceId}`);
+		}
+
+		// Handle OAuth sources via CalendarSourceManager
+		if (this.isOAuthSource(source)) {
+			if (!this.calendarSourceManager) {
+				return {
+					success: false,
+					error: "OAuth provider manager not initialized. Please configure the calendar authentication first.",
+					timestamp: Date.now(),
+				};
+			}
+			return this.syncOAuthSource(source as CalendarSource);
+		}
+
+		// Only URL-based sources can be synced by this manager directly
+		if (!this.isUrlBasedSource(source)) {
+			throw new Error(
+				`Source ${sourceId} is not a supported calendar source type`,
+			);
 		}
 
 		this.updateSyncStatus(sourceId, { status: "syncing" });
@@ -784,13 +922,134 @@ export class IcsManager extends Component {
 		const syncPromises = this.config.sources
 			.filter((source) => source.enabled)
 			.map(async (source) => {
-				const result = await this.syncSource(source.id);
-				results.set(source.id, result);
-				return result;
+				try {
+					const result = await this.syncSource(source.id);
+					results.set(source.id, result);
+					return result;
+				} catch (error) {
+					const errorMessage =
+						error instanceof Error
+							? error.message
+							: "Unknown error";
+					console.warn(
+						`Failed to sync source ${source.id}:`,
+						errorMessage,
+					);
+					const failedResult: IcsFetchResult = {
+						success: false,
+						error: errorMessage,
+						timestamp: Date.now(),
+					};
+					results.set(source.id, failedResult);
+					return failedResult;
+				}
 			});
 
 		await Promise.allSettled(syncPromises);
 		return results;
+	}
+
+	/**
+	 * Sync an OAuth-based source (Google, Outlook, Apple CalDAV)
+	 */
+	private async syncOAuthSource(
+		source: CalendarSource,
+	): Promise<IcsFetchResult> {
+		if (!this.calendarSourceManager) {
+			return {
+				success: false,
+				error: "Calendar Source Manager not initialized",
+				timestamp: Date.now(),
+			};
+		}
+
+		this.updateSyncStatus(source.id, { status: "syncing" });
+
+		try {
+			const provider = this.calendarSourceManager.getProvider(source);
+
+			// Calculate date range for sync: -30 days to +90 days (120 day window)
+			const now = new Date();
+			const start = new Date(now);
+			start.setDate(now.getDate() - 30);
+			const end = new Date(now);
+			end.setDate(now.getDate() + 90);
+
+			console.log(
+				`[IcsManager] Syncing OAuth source ${source.id} (${source.type})...`,
+			);
+
+			const events = await provider.getEvents({
+				range: { start, end },
+			});
+
+			console.log(
+				`[IcsManager] Fetched ${events.length} events from OAuth source ${source.id}`,
+			);
+
+			// Update cache
+			const timestamp = Date.now();
+			const cacheEntry: IcsCacheEntry = {
+				sourceId: source.id,
+				events,
+				timestamp,
+				expiresAt: timestamp + this.config.maxCacheAge * 60 * 60 * 1000,
+			};
+			this.cache.set(source.id, cacheEntry);
+
+			// Update sync status
+			this.updateSyncStatus(source.id, {
+				status: "idle",
+				lastSync: timestamp,
+				eventCount: events.length,
+			});
+
+			// Notify listeners
+			this.onEventsUpdated?.(source.id, events);
+
+			// Trigger workspace event so IcsSource can reload
+			try {
+				if (this.plugin?.app?.workspace) {
+					this.plugin.app.workspace.trigger(
+						"task-genius:ics-cache-updated",
+					);
+				}
+			} catch (e) {
+				console.warn(
+					"[IcsManager] Failed to trigger ics-cache-updated",
+					e,
+				);
+			}
+
+			return {
+				success: true,
+				data: {
+					events,
+					errors: [],
+					metadata: {},
+				},
+				timestamp,
+			};
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : "Unknown error";
+
+			console.warn(
+				`[IcsManager] OAuth sync failed for source ${source.id}:`,
+				error,
+			);
+
+			this.updateSyncStatus(source.id, {
+				status: "error",
+				error: errorMessage,
+			});
+
+			return {
+				success: false,
+				error: errorMessage,
+				timestamp: Date.now(),
+			};
+		}
 	}
 
 	/**
@@ -815,6 +1074,41 @@ export class IcsManager extends Component {
 	}
 
 	/**
+	 * Update cache for a specific source (used by OAuth providers like Google Calendar)
+	 */
+	updateCacheForSource(sourceId: string, events: IcsEvent[]): void {
+		const now = Date.now();
+		const cacheEntry: IcsCacheEntry = {
+			sourceId,
+			events,
+			timestamp: now,
+			expiresAt: now + this.config.maxCacheAge * 60 * 60 * 1000,
+		};
+		this.cache.set(sourceId, cacheEntry);
+
+		// Update sync status
+		this.updateSyncStatus(sourceId, {
+			status: "idle",
+			lastSync: now,
+			eventCount: events.length,
+		});
+
+		// Notify listeners
+		this.onEventsUpdated?.(sourceId, events);
+
+		// Trigger workspace event so IcsSource can reload
+		try {
+			if (this.plugin?.app?.workspace) {
+				this.plugin.app.workspace.trigger(
+					"task-genius:ics-cache-updated",
+				);
+			}
+		} catch (e) {
+			console.warn("[IcsManager] Failed to trigger ics-cache-updated", e);
+		}
+	}
+
+	/**
 	 * Clear all cache
 	 */
 	clearAllCache(): void {
@@ -824,7 +1118,9 @@ export class IcsManager extends Component {
 	/**
 	 * Fetch ICS data from a source
 	 */
-	private async fetchIcsData(source: IcsSource): Promise<IcsFetchResult> {
+	private async fetchIcsData(
+		source: IcsSource | LegacyIcsSource | UrlIcsSourceConfig,
+	): Promise<IcsFetchResult> {
 		try {
 			// Convert webcal URL if needed
 			const conversionResult = WebcalUrlConverter.convertWebcalUrl(
@@ -948,14 +1244,19 @@ export class IcsManager extends Component {
 
 	/**
 	 * Apply filters to events
+	 * @param events - Events to filter
+	 * @param source - Source configuration (any calendar source type)
 	 */
-	private applyFilters(events: IcsEvent[], source: IcsSource): IcsEvent[] {
+	private applyFilters(
+		events: IcsEvent[],
+		source: AnyCalendarSource,
+	): IcsEvent[] {
 		let filteredEvents = [...events];
 		console.log("applyFilters: initial events count", events.length);
 		console.log("applyFilters: source config", {
 			showAllDayEvents: source.showAllDayEvents,
 			showTimedEvents: source.showTimedEvents,
-			filters: source.filters,
+			filters: "filters" in source ? source.filters : undefined,
 		});
 
 		// Apply event type filters
@@ -974,12 +1275,13 @@ export class IcsManager extends Component {
 			);
 		}
 
-		// Apply custom filters
-		if (source.filters) {
+		// Apply custom filters (only for URL-based sources that have filters)
+		const filters = "filters" in source ? source.filters : undefined;
+		if (filters) {
 			filteredEvents = filteredEvents.filter((event) => {
 				// Include filters
-				if (source.filters!.include) {
-					const include = source.filters!.include;
+				if (filters.include) {
+					const include = filters.include;
 					let shouldInclude = true;
 
 					if (include.summary?.length) {
@@ -1018,8 +1320,8 @@ export class IcsManager extends Component {
 				}
 
 				// Exclude filters
-				if (source.filters!.exclude) {
-					const exclude = source.filters!.exclude;
+				if (filters.exclude) {
+					const exclude = filters.exclude;
 
 					if (exclude.summary?.length) {
 						if (
@@ -1299,5 +1601,295 @@ export class IcsManager extends Component {
 	override onunload(): void {
 		this.stopBackgroundRefresh();
 		super.onunload();
+	}
+
+	// =========================================================================
+	// Two-Way Sync Methods (for OAuth providers: Google, Outlook, Apple)
+	// =========================================================================
+
+	/**
+	 * Check if a source supports write operations (two-way sync)
+	 */
+	supportsWrite(sourceId: string): boolean {
+		const source = this.config.sources.find((s) => s.id === sourceId);
+		if (!source || !this.calendarSourceManager) {
+			return false;
+		}
+
+		// Only OAuth sources support write operations
+		if (!this.isOAuthSource(source)) {
+			return false;
+		}
+
+		try {
+			const provider = this.calendarSourceManager.getProvider(
+				source as CalendarSource,
+			);
+			return provider.supportsWrite();
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * Check if user can write to a specific calendar
+	 */
+	canWriteToCalendar(sourceId: string, calendarId?: string): boolean {
+		const source = this.config.sources.find((s) => s.id === sourceId);
+		if (!source || !this.calendarSourceManager) {
+			return false;
+		}
+
+		if (!this.isOAuthSource(source)) {
+			return false;
+		}
+
+		try {
+			const provider = this.calendarSourceManager.getProvider(
+				source as CalendarSource,
+			);
+			return provider.canWriteToCalendar(calendarId);
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * Create a new event in the calendar
+	 *
+	 * @param sourceId - The calendar source ID
+	 * @param event - The event to create
+	 * @param calendarId - Optional calendar ID (defaults to primary)
+	 * @returns WriteResult with success status and created event
+	 */
+	async createEvent(
+		sourceId: string,
+		event: IcsEvent,
+		calendarId?: string,
+	): Promise<WriteResult> {
+		const source = this.config.sources.find((s) => s.id === sourceId);
+		if (!source) {
+			return {
+				success: false,
+				error: `Source not found: ${sourceId}`,
+			};
+		}
+
+		if (!this.calendarSourceManager) {
+			return {
+				success: false,
+				error: "Calendar Source Manager not initialized",
+			};
+		}
+
+		if (!this.isOAuthSource(source)) {
+			return {
+				success: false,
+				error: "Source does not support write operations (ICS URLs are read-only)",
+			};
+		}
+
+		try {
+			const provider = this.calendarSourceManager.getProvider(
+				source as CalendarSource,
+			);
+			const result = await provider.createEvent(event, calendarId);
+
+			// If successful, update local cache
+			if (result.success && result.event) {
+				this.addEventToCache(sourceId, result.event);
+			}
+
+			return result;
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : "Unknown error";
+			console.error(
+				`[IcsManager] Failed to create event in source ${sourceId}:`,
+				error,
+			);
+			return {
+				success: false,
+				error: errorMessage,
+			};
+		}
+	}
+
+	/**
+	 * Update an existing event in the calendar
+	 *
+	 * @param sourceId - The calendar source ID
+	 * @param options - Update options including the event and optional original event for conflict detection
+	 * @returns WriteResult with success status and updated event
+	 */
+	async updateEvent(
+		sourceId: string,
+		options: UpdateEventOptions,
+	): Promise<WriteResult> {
+		const source = this.config.sources.find((s) => s.id === sourceId);
+		if (!source) {
+			return {
+				success: false,
+				error: `Source not found: ${sourceId}`,
+			};
+		}
+
+		if (!this.calendarSourceManager) {
+			return {
+				success: false,
+				error: "Calendar Source Manager not initialized",
+			};
+		}
+
+		if (!this.isOAuthSource(source)) {
+			return {
+				success: false,
+				error: "Source does not support write operations (ICS URLs are read-only)",
+			};
+		}
+
+		try {
+			const provider = this.calendarSourceManager.getProvider(
+				source as CalendarSource,
+			);
+			const result = await provider.updateEvent(options);
+
+			// If successful, update local cache
+			if (result.success && result.event) {
+				this.updateEventInCache(sourceId, result.event);
+			}
+
+			return result;
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : "Unknown error";
+			console.error(
+				`[IcsManager] Failed to update event in source ${sourceId}:`,
+				error,
+			);
+			return {
+				success: false,
+				error: errorMessage,
+			};
+		}
+	}
+
+	/**
+	 * Delete an event from the calendar
+	 *
+	 * @param sourceId - The calendar source ID
+	 * @param eventId - The provider event ID (providerEventId field of IcsEvent)
+	 * @param calendarId - Optional calendar ID
+	 * @param etag - Optional ETag for conflict detection
+	 * @returns WriteResult with success status
+	 */
+	async deleteEvent(
+		sourceId: string,
+		eventId: string,
+		calendarId?: string,
+		etag?: string,
+	): Promise<WriteResult> {
+		const source = this.config.sources.find((s) => s.id === sourceId);
+		if (!source) {
+			return {
+				success: false,
+				error: `Source not found: ${sourceId}`,
+			};
+		}
+
+		if (!this.calendarSourceManager) {
+			return {
+				success: false,
+				error: "Calendar Source Manager not initialized",
+			};
+		}
+
+		if (!this.isOAuthSource(source)) {
+			return {
+				success: false,
+				error: "Source does not support write operations (ICS URLs are read-only)",
+			};
+		}
+
+		try {
+			const provider = this.calendarSourceManager.getProvider(
+				source as CalendarSource,
+			);
+			const result = await provider.deleteEvent(
+				eventId,
+				calendarId,
+				etag,
+			);
+
+			// If successful, remove from local cache
+			if (result.success) {
+				this.removeEventFromCache(sourceId, eventId);
+			}
+
+			return result;
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : "Unknown error";
+			console.error(
+				`[IcsManager] Failed to delete event from source ${sourceId}:`,
+				error,
+			);
+			return {
+				success: false,
+				error: errorMessage,
+			};
+		}
+	}
+
+	/**
+	 * Add an event to the local cache
+	 */
+	private addEventToCache(sourceId: string, event: IcsEvent): void {
+		const cacheEntry = this.cache.get(sourceId);
+		if (cacheEntry) {
+			cacheEntry.events.push(event);
+			cacheEntry.timestamp = Date.now();
+
+			// Notify listeners
+			this.onEventsUpdated?.(sourceId, cacheEntry.events);
+		}
+	}
+
+	/**
+	 * Update an event in the local cache
+	 */
+	private updateEventInCache(sourceId: string, event: IcsEvent): void {
+		const cacheEntry = this.cache.get(sourceId);
+		if (cacheEntry) {
+			const index = cacheEntry.events.findIndex(
+				(e) => e.providerEventId === event.providerEventId,
+			);
+			if (index !== -1) {
+				cacheEntry.events[index] = event;
+			} else {
+				// Event not found in cache, add it
+				cacheEntry.events.push(event);
+			}
+			cacheEntry.timestamp = Date.now();
+
+			// Notify listeners
+			this.onEventsUpdated?.(sourceId, cacheEntry.events);
+		}
+	}
+
+	/**
+	 * Remove an event from the local cache
+	 */
+	private removeEventFromCache(sourceId: string, eventId: string): void {
+		const cacheEntry = this.cache.get(sourceId);
+		if (cacheEntry) {
+			cacheEntry.events = cacheEntry.events.filter(
+				(e) => e.providerEventId !== eventId,
+			);
+			cacheEntry.timestamp = Date.now();
+
+			// Notify listeners
+			this.onEventsUpdated?.(sourceId, cacheEntry.events);
+		}
 	}
 }

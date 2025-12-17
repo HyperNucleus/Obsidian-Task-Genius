@@ -20,6 +20,11 @@ import {
 	IcsTextReplacement,
 	IcsHolidayConfig,
 } from "@/types/ics";
+import {
+	isUrlIcsSource,
+	LegacyIcsSource,
+	AnyCalendarSource,
+} from "@/types/calendar-provider";
 import { t } from "@/translations/helper";
 import TaskProgressBarPlugin from "@/index";
 import "@/styles/ics-settings.scss";
@@ -35,7 +40,7 @@ export class IcsSettingsComponent {
 	constructor(
 		plugin: TaskProgressBarPlugin,
 		containerEl: HTMLElement,
-		onBack?: () => void
+		onBack?: () => void,
 	) {
 		this.plugin = plugin;
 		this.containerEl = containerEl;
@@ -47,47 +52,6 @@ export class IcsSettingsComponent {
 		this.containerEl.empty();
 		this.containerEl.addClass("ics-settings-container");
 
-		const backheader = this.containerEl.createDiv(
-			"settings-tab-section-header"
-		);
-		// Header with back button
-		const headerContainer = this.containerEl.createDiv(
-			"ics-header-container"
-		);
-
-		if (this.onBack) {
-			const button = new ButtonComponent(backheader)
-				.setClass("header-button")
-				.onClick(() => {
-					this.onBack?.();
-				});
-
-			button.buttonEl.createEl(
-				"span",
-				{
-					cls: "header-button-icon",
-				},
-				(el) => {
-					setIcon(el, "arrow-left");
-				}
-			);
-			button.buttonEl.createEl("span", {
-				cls: "header-button-text",
-				text: t("Back to main settings"),
-			});
-		}
-
-		headerContainer.createEl("h2", {
-			text: t("ICS Calendar Integration"),
-		});
-
-		headerContainer.createEl("p", {
-			text: t(
-				"Configure external calendar sources to display events in your task views."
-			),
-			cls: "ics-description",
-		});
-
 		// Global settings
 		this.displayGlobalSettings();
 
@@ -96,7 +60,7 @@ export class IcsSettingsComponent {
 
 		// Add source button in a styled container
 		const addSourceContainer = this.containerEl.createDiv(
-			"ics-add-source-container"
+			"ics-add-source-container",
 		);
 		const addButton = addSourceContainer.createEl("button", {
 			text: "+ " + t("Add New Calendar Source"),
@@ -111,7 +75,7 @@ export class IcsSettingsComponent {
 
 	private displayGlobalSettings(): void {
 		const globalContainer = this.containerEl.createDiv(
-			"ics-global-settings"
+			"ics-global-settings",
 		);
 		globalContainer.createEl("h3", { text: t("Global Settings") });
 
@@ -119,7 +83,7 @@ export class IcsSettingsComponent {
 		new Setting(globalContainer)
 			.setName(t("Enable Background Refresh"))
 			.setDesc(
-				t("Automatically refresh calendar sources in the background")
+				t("Automatically refresh calendar sources in the background"),
 			)
 			.addToggle((toggle) => {
 				toggle
@@ -208,21 +172,45 @@ export class IcsSettingsComponent {
 			});
 	}
 
+	/**
+	 * Check if a source is a URL-based ICS source (legacy or new format)
+	 */
+	private isUrlBasedSource(
+		source: AnyCalendarSource,
+	): source is IcsSource | LegacyIcsSource {
+		// Legacy sources always have url, new sources need type check
+		return "url" in source && typeof source.url === "string";
+	}
+
 	private displaySourcesList(): void {
 		const sourcesContainer = this.containerEl.createDiv("ics-sources-list");
 		sourcesContainer.createEl("h3", { text: t("Calendar Sources") });
 
-		if (this.config.sources.length === 0) {
+		// Filter to only show URL-based ICS sources (legacy tab)
+		const urlSources = this.config.sources.filter((s) =>
+			this.isUrlBasedSource(s),
+		);
+
+		if (urlSources.length === 0) {
 			const emptyState = sourcesContainer.createDiv("ics-empty-state");
 			emptyState.createEl("p", {
 				text: t(
-					"No calendar sources configured. Add a source to get started."
+					"No calendar sources configured. Add a source to get started.",
 				),
 			});
 			return;
 		}
 
-		this.config.sources.forEach((source, index) => {
+		urlSources.forEach((source) => {
+			// Find the original index in config.sources for updates
+			const index = this.config.sources.findIndex(
+				(s) => s.id === source.id,
+			);
+			if (index === -1) return;
+
+			// Type assertion since we filtered for URL sources
+			const urlSource = source as IcsSource;
+
 			const sourceContainer =
 				sourcesContainer.createDiv("ics-source-item");
 
@@ -230,37 +218,37 @@ export class IcsSettingsComponent {
 			const sourceHeader = sourceContainer.createDiv("ics-source-header");
 
 			const titleContainer = sourceHeader.createDiv("ics-source-title");
-			titleContainer.createEl("strong", { text: source.name });
+			titleContainer.createEl("strong", { text: urlSource.name });
 
 			const statusEl = sourceHeader.createEl("span", {
 				cls: "ics-source-status",
 			});
 			statusEl.setText(
-				source.enabled ? t("ICS Enabled") : t("ICS Disabled")
+				urlSource.enabled ? t("ICS Enabled") : t("ICS Disabled"),
 			);
 			statusEl.addClass(
-				source.enabled ? "status-enabled" : "status-disabled"
+				urlSource.enabled ? "status-enabled" : "status-disabled",
 			);
 
 			// Source details
 			const sourceDetails =
 				sourceContainer.createDiv("ics-source-details");
 			sourceDetails.createEl("div", {
-				text: `${t("URL")}: ${this.truncateUrl(source.url)}`,
-				title: source.url, // Show full URL on hover
+				text: `${t("URL")}: ${this.truncateUrl(urlSource.url)}`,
+				title: urlSource.url, // Show full URL on hover
 			});
 			sourceDetails.createEl("div", {
-				text: `${t("Refresh")}: ${source.refreshInterval}${t("min")}`,
+				text: `${t("Refresh")}: ${urlSource.refreshInterval}${t("min")}`,
 			});
-			if (source.color) {
+			if (urlSource.color) {
 				const colorDiv = sourceDetails.createEl("div");
 				colorDiv.createSpan({ text: `${t("Color")}: ` });
 				colorDiv.createEl("span", {
 					attr: {
-						style: `display: inline-block; width: 12px; height: 12px; background: ${source.color}; border-radius: 2px; margin-left: 4px; vertical-align: middle;`,
+						style: `display: inline-block; width: 12px; height: 12px; background: ${urlSource.color}; border-radius: 2px; margin-left: 4px; vertical-align: middle;`,
 					},
 				});
-				colorDiv.createSpan({ text: ` ${source.color}` });
+				colorDiv.createSpan({ text: ` ${urlSource.color}` });
 			}
 
 			// Source actions - reorganized for better UX
@@ -283,7 +271,7 @@ export class IcsSettingsComponent {
 						this.config.sources[index] = updatedSource;
 						this.saveAndRefresh();
 					},
-					source
+					urlSource,
 				).open();
 			};
 
@@ -302,14 +290,16 @@ export class IcsSettingsComponent {
 				try {
 					const icsManager = this.plugin.getIcsManager();
 					if (icsManager) {
-						const result = await icsManager.syncSource(source.id);
+						const result = await icsManager.syncSource(
+							urlSource.id,
+						);
 						if (result.success) {
 							new Notice(t("Sync completed successfully"));
 							syncButton.removeClass("syncing");
 							syncButton.addClass("success");
 							setTimeout(
 								() => syncButton.removeClass("success"),
-								2000
+								2000,
 							);
 						} else {
 							new Notice(t("Sync failed: ") + result.error);
@@ -317,7 +307,7 @@ export class IcsSettingsComponent {
 							syncButton.addClass("error");
 							setTimeout(
 								() => syncButton.removeClass("error"),
-								2000
+								2000,
 							);
 						}
 					}
@@ -338,8 +328,8 @@ export class IcsSettingsComponent {
 
 			// Toggle button
 			const toggleButton = secondaryActions.createEl("button", {
-				text: source.enabled ? t("Disable") : t("Enable"),
-				title: source.enabled
+				text: urlSource.enabled ? t("Disable") : t("Enable"),
+				title: urlSource.enabled
 					? t("Disable this source")
 					: t("Enable this source"),
 			});
@@ -359,8 +349,8 @@ export class IcsSettingsComponent {
 				if (
 					confirm(
 						t(
-							"Are you sure you want to delete this calendar source?"
-						)
+							"Are you sure you want to delete this calendar source?",
+						),
 					)
 				) {
 					this.config.sources.splice(index, 1);
@@ -403,7 +393,7 @@ class IcsSourceModal extends Modal {
 	constructor(
 		app: App,
 		onSave: (source: IcsSource) => void,
-		existingSource?: IcsSource
+		existingSource?: IcsSource,
 	) {
 		super(app);
 		this.onSave = onSave;
@@ -452,12 +442,12 @@ class IcsSourceModal extends Modal {
 			.setName(t("ICS URL"))
 			.setDesc(
 				t(
-					"URL to the ICS/iCal file (supports http://, https://, and webcal:// protocols)"
-				)
+					"URL to the ICS/iCal file (supports http://, https://, and webcal:// protocols)",
+				),
 			)
 			.addText((text) => {
 				text.setPlaceholder(
-					"https://example.com/calendar.ics or webcal://example.com/calendar.ics"
+					"https://example.com/calendar.ics or webcal://example.com/calendar.ics",
 				)
 					.setValue(this.source.url)
 					.onChange((value) => {
@@ -470,16 +460,16 @@ class IcsSourceModal extends Modal {
 							if (conversionResult.success) {
 								const description =
 									WebcalUrlConverter.getConversionDescription(
-										conversionResult
+										conversionResult,
 									);
 								// Find the description element and update it
 								const descEl =
 									text.inputEl.parentElement?.querySelector(
-										".setting-item-description"
+										".setting-item-description",
 									);
 								if (descEl) {
 									descEl.textContent = `${t(
-										"URL to the ICS/iCal file (supports http://, https://, and webcal:// protocols)"
+										"URL to the ICS/iCal file (supports http://, https://, and webcal:// protocols)",
 									)} - ${description}`;
 								}
 							}
@@ -487,11 +477,11 @@ class IcsSourceModal extends Modal {
 							// Reset description for non-webcal URLs
 							const descEl =
 								text.inputEl.parentElement?.querySelector(
-									".setting-item-description"
+									".setting-item-description",
 								);
 							if (descEl) {
 								descEl.textContent = t(
-									"URL to the ICS/iCal file (supports http://, https://, and webcal:// protocols)"
+									"URL to the ICS/iCal file (supports http://, https://, and webcal:// protocols)",
 								);
 							}
 						}
@@ -541,7 +531,7 @@ class IcsSourceModal extends Modal {
 		new Setting(contentEl)
 			.setName(t("Show Type"))
 			.setDesc(
-				t("How to display events from this source in calendar views")
+				t("How to display events from this source in calendar views"),
 			)
 			.addDropdown((dropdown) => {
 				dropdown
@@ -645,7 +635,7 @@ class IcsSourceModal extends Modal {
 		});
 		textReplacementsContainer.createEl("p", {
 			text: t(
-				"Configure rules to modify event text using regular expressions"
+				"Configure rules to modify event text using regular expressions",
 			),
 			cls: "setting-item-description",
 		});
@@ -657,7 +647,7 @@ class IcsSourceModal extends Modal {
 
 		// Container for replacement rules
 		const rulesContainer = textReplacementsContainer.createDiv(
-			"text-replacements-list"
+			"text-replacements-list",
 		);
 
 		const refreshRulesList = () => {
@@ -665,7 +655,7 @@ class IcsSourceModal extends Modal {
 
 			if (this.source.textReplacements!.length === 0) {
 				const emptyState = rulesContainer.createDiv(
-					"text-replacements-empty"
+					"text-replacements-empty",
 				);
 				emptyState.createEl("p", {
 					text: t("No text replacement rules configured"),
@@ -674,12 +664,12 @@ class IcsSourceModal extends Modal {
 			} else {
 				this.source.textReplacements!.forEach((rule, index) => {
 					const ruleContainer = rulesContainer.createDiv(
-						"text-replacement-rule"
+						"text-replacement-rule",
 					);
 
 					// Rule header
 					const ruleHeader = ruleContainer.createDiv(
-						"text-replacement-header"
+						"text-replacement-header",
 					);
 					const titleEl = ruleHeader.createEl("strong", {
 						text: rule.name || `Rule ${index + 1}`,
@@ -694,7 +684,7 @@ class IcsSourceModal extends Modal {
 
 					// Rule details
 					const ruleDetails = ruleContainer.createDiv(
-						"text-replacement-details"
+						"text-replacement-details",
 					);
 					ruleDetails.createEl("div", {
 						text: `${t("Target")}: ${rule.target}`,
@@ -710,7 +700,7 @@ class IcsSourceModal extends Modal {
 
 					// Rule actions
 					const ruleActions = ruleContainer.createDiv(
-						"text-replacement-actions"
+						"text-replacement-actions",
 					);
 
 					const editButton = ruleActions.createEl("button", {
@@ -725,7 +715,7 @@ class IcsSourceModal extends Modal {
 									updatedRule;
 								refreshRulesList();
 							},
-							rule
+							rule,
 						).open();
 					};
 
@@ -746,8 +736,8 @@ class IcsSourceModal extends Modal {
 						if (
 							confirm(
 								t(
-									"Are you sure you want to delete this text replacement rule?"
-								)
+									"Are you sure you want to delete this text replacement rule?",
+								),
 							)
 						) {
 							this.source.textReplacements!.splice(index, 1);
@@ -762,7 +752,7 @@ class IcsSourceModal extends Modal {
 
 		// Add rule button
 		const addRuleContainer = textReplacementsContainer.createDiv(
-			"text-replacement-add"
+			"text-replacement-add",
 		);
 		const addButton = addRuleContainer.createEl("button", {
 			text: "+ " + t("Add Text Replacement Rule"),
@@ -791,7 +781,7 @@ class IcsSourceModal extends Modal {
 					.setClass("auth-field")
 					.addText((text) => {
 						text.setValue(
-							this.source.auth?.username || ""
+							this.source.auth?.username || "",
 						).onChange((value) => {
 							if (this.source.auth) {
 								this.source.auth.username = value;
@@ -804,7 +794,7 @@ class IcsSourceModal extends Modal {
 					.setClass("auth-field")
 					.addText((text) => {
 						text.setValue(
-							this.source.auth?.password || ""
+							this.source.auth?.password || "",
 						).onChange((value) => {
 							if (this.source.auth) {
 								this.source.auth.password = value;
@@ -824,7 +814,7 @@ class IcsSourceModal extends Modal {
 								if (this.source.auth) {
 									this.source.auth.token = value;
 								}
-							}
+							},
 						);
 					});
 				break;
@@ -839,8 +829,8 @@ class IcsSourceModal extends Modal {
 							JSON.stringify(
 								this.source.auth?.headers || {},
 								null,
-								2
-							)
+								2,
+							),
 						).onChange((value) => {
 							try {
 								const headers = JSON.parse(value);
@@ -910,7 +900,7 @@ class IcsSourceModal extends Modal {
 		new Setting(statusContainer)
 			.setName(t("Enable Status Mapping"))
 			.setDesc(
-				t("Automatically map ICS events to specific task statuses")
+				t("Automatically map ICS events to specific task statuses"),
 			)
 			.addToggle((toggle) => {
 				toggle
@@ -955,7 +945,7 @@ class IcsSourceModal extends Modal {
 		new Setting(container)
 			.setName(t("Maximum Gap Days"))
 			.setDesc(
-				t("Maximum days between events to consider them consecutive")
+				t("Maximum days between events to consider them consecutive"),
 			)
 			.setClass("holiday-setting")
 			.addText((text) => {
@@ -1003,14 +993,14 @@ class IcsSourceModal extends Modal {
 		new Setting(patternsContainer)
 			.setName(t("Summary Patterns"))
 			.setDesc(
-				t("Regex patterns to match in event titles (one per line)")
+				t("Regex patterns to match in event titles (one per line)"),
 			)
 			.addTextArea((text) => {
 				text.setValue(
 					(
 						this.source.holidayConfig!.detectionPatterns.summary ||
 						[]
-					).join("\n")
+					).join("\n"),
 				).onChange((value) => {
 					this.source.holidayConfig!.detectionPatterns.summary = value
 						.split("\n")
@@ -1028,7 +1018,7 @@ class IcsSourceModal extends Modal {
 					(
 						this.source.holidayConfig!.detectionPatterns.keywords ||
 						[]
-					).join("\n")
+					).join("\n"),
 				).onChange((value) => {
 					this.source.holidayConfig!.detectionPatterns.keywords =
 						value
@@ -1042,14 +1032,14 @@ class IcsSourceModal extends Modal {
 		new Setting(patternsContainer)
 			.setName(t("Categories"))
 			.setDesc(
-				t("Event categories that indicate holidays (one per line)")
+				t("Event categories that indicate holidays (one per line)"),
 			)
 			.addTextArea((text) => {
 				text.setValue(
 					(
 						this.source.holidayConfig!.detectionPatterns
 							.categories || []
-					).join("\n")
+					).join("\n"),
 				).onChange((value) => {
 					this.source.holidayConfig!.detectionPatterns.categories =
 						value
@@ -1064,14 +1054,14 @@ class IcsSourceModal extends Modal {
 			.setName(t("Group Display Format"))
 			.setDesc(
 				t(
-					"Format for grouped holiday display. Use {title}, {count}, {startDate}, {endDate}"
-				)
+					"Format for grouped holiday display. Use {title}, {count}, {startDate}, {endDate}",
+				),
 			)
 			.setClass("holiday-setting")
 			.addText((text) => {
 				text.setPlaceholder("{title} ({count} days)")
 					.setValue(
-						this.source.holidayConfig!.groupDisplayFormat || ""
+						this.source.holidayConfig!.groupDisplayFormat || "",
 					)
 					.onChange((value) => {
 						this.source.holidayConfig!.groupDisplayFormat =
@@ -1083,7 +1073,7 @@ class IcsSourceModal extends Modal {
 	private refreshStatusMappingSettings(container: HTMLElement): void {
 		// Remove existing status mapping settings
 		const existingSettings = container.querySelectorAll(
-			".status-mapping-setting"
+			".status-mapping-setting",
 		);
 		existingSettings.forEach((setting) => setting.remove());
 
@@ -1138,7 +1128,7 @@ class IcsSourceModal extends Modal {
 					.addOption("/", t("Status In Progress"))
 					.addOption("?", t("Status Question"))
 					.setValue(
-						this.source.statusMapping!.timingRules.currentEvents
+						this.source.statusMapping!.timingRules.currentEvents,
 					)
 					.onChange((value) => {
 						this.source.statusMapping!.timingRules.currentEvents =
@@ -1158,7 +1148,7 @@ class IcsSourceModal extends Modal {
 					.addOption("/", t("Status In Progress"))
 					.addOption("?", t("Status Question"))
 					.setValue(
-						this.source.statusMapping!.timingRules.futureEvents
+						this.source.statusMapping!.timingRules.futureEvents,
 					)
 					.onChange((value) => {
 						this.source.statusMapping!.timingRules.futureEvents =
@@ -1171,7 +1161,7 @@ class IcsSourceModal extends Modal {
 		propertyContainer.createEl("h4", { text: t("Property Rules") });
 		propertyContainer.createEl("p", {
 			text: t(
-				"Optional rules based on event properties (higher priority than timing rules)"
+				"Optional rules based on event properties (higher priority than timing rules)",
 			),
 			cls: "setting-item-description",
 		});
@@ -1195,7 +1185,7 @@ class IcsSourceModal extends Modal {
 					.addOption("?", t("Status Question"))
 					.setValue(
 						this.source.statusMapping!.propertyRules!.holidayMapping
-							?.holidayStatus || ""
+							?.holidayStatus || "",
 					)
 					.onChange((value) => {
 						if (
@@ -1222,8 +1212,8 @@ class IcsSourceModal extends Modal {
 			.setName(t("Category Mapping"))
 			.setDesc(
 				t(
-					"Map specific categories to statuses (format: category:status, one per line)"
-				)
+					"Map specific categories to statuses (format: category:status, one per line)",
+				),
 			)
 			.addTextArea((text) => {
 				const categoryMapping =
@@ -1272,11 +1262,11 @@ class IcsSourceModal extends Modal {
 
 		// Use WebcalUrlConverter for URL validation
 		const conversionResult = WebcalUrlConverter.convertWebcalUrl(
-			this.source.url
+			this.source.url,
 		);
 		if (!conversionResult.success) {
 			new Notice(
-				t("Please enter a valid URL") + ": " + conversionResult.error
+				t("Please enter a valid URL") + ": " + conversionResult.error,
 			);
 			return false;
 		}
@@ -1300,7 +1290,7 @@ class TextReplacementModal extends Modal {
 	constructor(
 		app: App,
 		onSave: (rule: IcsTextReplacement) => void,
-		existingRule?: IcsTextReplacement
+		existingRule?: IcsTextReplacement,
 	) {
 		super(app);
 		this.onSave = onSave;
@@ -1385,11 +1375,11 @@ class TextReplacementModal extends Modal {
 				if (this.rule.pattern && input) {
 					const regex = new RegExp(
 						this.rule.pattern,
-						this.rule.flags || "g"
+						this.rule.flags || "g",
 					);
 					const result = input.replace(regex, this.rule.replacement);
 					const resultSpan = testOutput.querySelector(
-						".test-result"
+						".test-result",
 					) as HTMLElement;
 					if (resultSpan) {
 						resultSpan.textContent = result;
@@ -1398,7 +1388,7 @@ class TextReplacementModal extends Modal {
 					}
 				} else {
 					const resultSpan = testOutput.querySelector(
-						".test-result"
+						".test-result",
 					) as HTMLElement;
 					if (resultSpan) {
 						resultSpan.textContent = input || "";
@@ -1407,7 +1397,7 @@ class TextReplacementModal extends Modal {
 				}
 			} catch (error) {
 				const resultSpan = testOutput.querySelector(
-					".test-result"
+					".test-result",
 				) as HTMLElement;
 				if (resultSpan) {
 					resultSpan.textContent = "Invalid regex pattern";
@@ -1421,8 +1411,8 @@ class TextReplacementModal extends Modal {
 			.setName(t("Pattern (Regular Expression)"))
 			.setDesc(
 				t(
-					"Regular expression pattern to match. Use parentheses for capture groups."
-				)
+					"Regular expression pattern to match. Use parentheses for capture groups.",
+				),
 			)
 			.addText((text) => {
 				text.setPlaceholder("^Meeting: ")
@@ -1440,8 +1430,8 @@ class TextReplacementModal extends Modal {
 			.setName(t("Replacement"))
 			.setDesc(
 				t(
-					"Text to replace matches with. Use $1, $2, etc. for capture groups."
-				)
+					"Text to replace matches with. Use $1, $2, etc. for capture groups.",
+				),
 			)
 			.addText((text) => {
 				text.setPlaceholder("")
@@ -1459,8 +1449,8 @@ class TextReplacementModal extends Modal {
 			.setName(t("Regex Flags"))
 			.setDesc(
 				t(
-					"Regular expression flags (e.g., 'g' for global, 'i' for case-insensitive)"
-				)
+					"Regular expression flags (e.g., 'g' for global, 'i' for case-insensitive)",
+				),
 			)
 			.addText((text) => {
 				text.setPlaceholder("g")
@@ -1521,7 +1511,7 @@ class TextReplacementModal extends Modal {
 				text.setPlaceholder("Meeting: Weekly Standup").onChange(
 					(value) => {
 						updateTestOutput(value);
-					}
+					},
 				);
 			});
 
