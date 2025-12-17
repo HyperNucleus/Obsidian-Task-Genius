@@ -1,10 +1,10 @@
 <div align="center">
   <img src="media/task-genius.webp" alt="Task Genius Logo" width="100%">
 
-  [![Version](https://img.shields.io/badge/version-8.9.0-blue.svg)](https://github.com/Quorafind/Obsidian-Task-Genius)
+  [![Version](https://img.shields.io/github/v/release/Quorafind/Obsidian-Task-Genius?label=version)](https://github.com/Quorafind/Obsidian-Task-Genius/releases)
   [![Discord](https://img.shields.io/discord/1382008288706695229?color=7289da&label=Discord&logo=discord&logoColor=white)](https://discord.gg/ARR2rHHX6b)
 
-  [Documentation](https://taskgenius.md) • [Installation](#installation) • [Discord Community](https://discord.gg/ARR2rHHX6b)
+  [Documentation](https://taskgenius.md) | [Installation](#installation) | [Discord Community](https://discord.gg/ARR2rHHX6b)
 </div>
 
 ---
@@ -40,8 +40,8 @@ For detailed feature documentation, visit [taskgenius.md](https://taskgenius.md)
 4. Click Install, then Enable
 
 ### Manual Installation
-1. Download the latest release from [GitHub Releases](https://github.com/taskgenius/taskgenius-plugin/releases)
-2. Extract files to `.obsidian/plugins/task-genius/`
+1. Download the latest release from [GitHub Releases](https://github.com/Quorafind/Obsidian-Task-Genius/releases)
+2. Extract files to `.obsidian/plugins/obsidian-task-progress-bar/`
 3. Enable the plugin in Obsidian settings
 
 ---

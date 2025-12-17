@@ -51,120 +51,16 @@ pnpm run dev
 
 ### Directory Structure
 
-```
-SRC
-├─cache # Cache system used for caching data from Fluent view
-├─commands # Commands for the plugin
-├─common # Common files for the plugin
-│  └─task-status # Task statuses marks like `[x]` and `[ ]`
-├─components # Components for the plugin
-│  ├─features # Contains all features related components
-│  │  ├─calendar
-│  │  │  ├─rendering
-│  │  │  └─views
-│  │  ├─fluent
-│  │  │  ├─components
-│  │  │  ├─events
-│  │  │  └─managers
-│  │  ├─gantt
-│  │  ├─habit
-│  │  │  ├─components
-│  │  │  ├─habitcard
-│  │  │  └─modals
-│  │  ├─kanban
-│  │  ├─on-completion
-│  │  ├─onboarding
-│  │  │  ├─modals
-│  │  │  ├─previews
-│  │  │  ├─steps
-│  │  │  │  ├─guide
-│  │  │  │  ├─intro
-│  │  │  │  └─preview
-│  │  │  └─ui
-│  │  ├─quadrant
-│  │  ├─quick-capture
-│  │  │  ├─components
-│  │  │  ├─modals
-│  │  │  └─suggest
-│  │  ├─read-mode
-│  │  ├─settings
-│  │  │  ├─components
-│  │  │  ├─core
-│  │  │  └─tabs
-│  │  ├─table
-│  │  ├─task
-│  │  │  ├─edit
-│  │  │  ├─filter
-│  │  │  │  └─in-view
-│  │  │  │      └─custom
-│  │  │  └─view
-│  │  │      └─modals
-│  │  ├─timeline-sidebar
-│  │  └─workflow
-│  │      ├─modals
-│  │      └─widgets
-│  └─ui # UI components for the plugin
-│      ├─behavior
-│      ├─date-picker
-│      ├─feedback
-│      ├─inputs
-│      ├─menus
-│      ├─modals
-│      ├─popovers
-│      ├─renderers
-│      ├─suggest
-│      └─tree
-├─core # Main core files for the plugin
-│  └─goal
-├─dataflow # Dataflow architecture(focused on performance and scalability)
-│  ├─api
-│  ├─augment
-│  ├─core
-│  ├─events
-│  ├─indexer
-│  ├─parsers
-│  ├─persistence
-│  ├─project
-│  ├─sources
-│  └─workers
-├─editor-extensions # Editor extensions for Obsidian
-│  ├─autocomplete
-│  ├─core
-│  ├─date-time
-│  ├─task-operations
-│  ├─ui-widgets
-│  └─workflow
-├─executors # Action executors when task is completed/archived/duplicated/moved/etc.
-│  └─completion
-├─managers # Some data/task managers
-├─mcp # MCP server for Agentic task management
-│  ├─auth
-│  ├─bridge
-│  └─types
-├─pages # All views created by the plugin
-│  └─bases # Bases view support
-├─parsers # Task parsers
-├─patches # Patches for Obsidian
-├─services # Task related services
-├─styles # All styles for the plugin
-│  ├─calendar
-│  ├─fluent
-│  ├─gantt
-│  ├─kanban
-│  └─quadrant
-├─translations # All translations for the plugin
-│  └─locale
-├─types # All types for the plugin
-├─utils # All utils for the plugin
-│  ├─date
-│  ├─file
-│  ├─task
-│  └─ui
-├─__mocks__
-└─__tests__
-    ├─file-source
-    ├─file-task-manager
-    └─integration
+```text
+src/
+  index.ts            # Plugin entrypoint (registers views/commands)
+  components/         # UI (views, settings tabs, modals, widgets)
+  dataflow/           # Task indexing + repository
+  editor-extensions/  # CodeMirror extensions (filter, status, pickers, timer)
+  mcp/                # MCP server (Model Context Protocol)
+  pages/              # Views (TaskView, Bases views, widgets)
+  managers/           # Higher-level managers (onboarding, changelog, etc.)
+  utils/              # Shared helpers (dates, file ops, etc.)
 ```
 
 ### Feature Development Flow
