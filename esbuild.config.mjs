@@ -3,9 +3,13 @@ import process from "process";
 import builtins from "builtin-modules";
 import fs from "fs";
 import path from "path";
+import dotenv from "dotenv";
 
 import inlineWorkerPlugin from "esbuild-plugin-inline-worker";
 import { sassPlugin } from "esbuild-sass-plugin";
+
+// Load environment variables from .env file
+dotenv.config();
 
 // Respect release-it dry-run: skip writing build artifacts entirely
 const __D_RY__ =
@@ -93,6 +97,12 @@ const copyManifestPlugin = {
 const buildOptions = {
 	banner: {
 		js: banner,
+	},
+	define: {
+		// Inject base64-encoded secrets at build time (decoded at runtime)
+		"process.env.GOOGLE_CLIENT_SECRET_B64": JSON.stringify(
+			process.env.GOOGLE_CLIENT_SECRET_B64 || "",
+		),
 	},
 	minify: prod ? true : false,
 	entryPoints: ["src/index.ts"],
