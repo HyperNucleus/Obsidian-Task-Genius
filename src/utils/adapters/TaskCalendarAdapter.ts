@@ -11,6 +11,7 @@
  */
 
 import { Task, StandardTaskMetadata } from "@/types/task";
+import { IcsTask } from "@/types/ics";
 import { format } from "date-fns";
 import { isDateOnly } from "@/utils/date/date-utils";
 
@@ -43,6 +44,34 @@ interface TaskDateRange {
  * @returns CalendarEvent object or null if task has no date
  */
 export function taskToCalendarEvent(task: Task): CalendarEvent | null {
+	// Check if this is an ICS task - use icsEvent times directly for accuracy
+	const isIcsTask = (task as any).source?.type === "ics";
+	const icsTask = isIcsTask ? (task as unknown as IcsTask) : null;
+
+	if (icsTask?.icsEvent) {
+		const { dtstart, dtend, allDay } = icsTask.icsEvent;
+		const startFormatted = formatDateForCalendar(dtstart.getTime(), allDay);
+		const endFormatted = dtend
+			? formatDateForCalendar(dtend.getTime(), allDay)
+			: startFormatted;
+
+		return {
+			id: task.id,
+			title: task.content,
+			start: startFormatted,
+			end: endFormatted,
+			allDay: allDay,
+			color: icsTask.icsEvent.source?.color || getTaskColor(task),
+			metadata: {
+				originalTask: task,
+				priority: task.metadata.priority,
+				tags: task.metadata.tags,
+				project: task.metadata.project,
+			},
+		};
+	}
+
+	// Standard task processing
 	const dateRange = calculateTaskDateRange(task);
 
 	if (!dateRange.start) {

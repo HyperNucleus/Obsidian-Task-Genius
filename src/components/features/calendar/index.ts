@@ -90,6 +90,7 @@ export class CalendarComponent extends Component {
 	public containerEl: HTMLElement;
 	private tasks: Task[] = [];
 	private events: CalendarEvent[] = [];
+	private externalTextEvents: AdapterCalendarEvent[] = [];
 	private currentViewMode: CalendarViewMode = "month";
 	private currentDate: moment.Moment = moment();
 
@@ -194,6 +195,7 @@ export class CalendarComponent extends Component {
 		super.onload();
 		this.processTasks();
 		this.render();
+		this.registerExternalTextDropHandlers();
 
 		// Listen for calendar views configuration changes
 		this.registerEvent(
@@ -968,7 +970,14 @@ export class CalendarComponent extends Component {
 	// ============================================
 
 	private handleTGEventClick(event: AdapterCalendarEvent) {
-		const task = getTaskFromEvent(event as any);
+		let task = getTaskFromEvent(event as any);
+
+		// Fallback: try to find task by ID if metadata is missing
+		// This fixes issues where the event object is reconstructed/cloned by the library
+		if (!task && event.id) {
+			task = this.tasks.find((t) => t.id === event.id) || null;
+		}
+
 		if (task) {
 			this.params?.onTaskSelected?.(task);
 		}
@@ -980,16 +989,27 @@ export class CalendarComponent extends Component {
 	 * Based on CalendarEventComponent implementation in event-renderer.ts
 	 */
 	private handleTGRenderEvent(ctx: EventRenderContext) {
-		console.log(
-			"[Calendar] handleTGRenderEvent called",
-			ctx.event.id,
-			ctx.viewType,
-		);
-
 		// First render the default content
 		ctx.defaultRender();
 
 		const { event, el } = ctx;
+
+		// Backup click handler to ensure selection always works
+		// This guards against cases where the library's click handler fails
+		if (!el.hasAttribute("data-click-handler")) {
+			el.setAttribute("data-click-handler", "true");
+			this.registerDomEvent(el, "click", (ev) => {
+				// Ignore clicks on the checkbox (it handles its own logic)
+				if (
+					(ev.target as HTMLElement).closest(
+						".task-list-item-checkbox",
+					)
+				) {
+					return;
+				}
+				this.handleTGEventClick(event);
+			});
+		}
 
 		// Skip if checkbox already added
 		if (el.querySelector(".task-list-item-checkbox")) {
@@ -1081,15 +1101,22 @@ export class CalendarComponent extends Component {
 		newStart: Date | string,
 		newEnd: Date | string,
 	) {
+		if (event.metadata?.externalDrop === true) {
+			this.updateExternalTextEventTime(event, newStart, newEnd);
+			return;
+		}
+
 		const task = getTaskFromEvent(event as any);
 		if (!task) {
 			new Notice(t("Failed to update task: Task not found"));
 			return;
 		}
 
-		// Don't allow dragging ICS tasks (external calendar events)
+		// Don't allow dragging read-only ICS tasks (URL-based external calendar events)
+		// OAuth providers (Google, Outlook, Apple) support two-way sync and can be dragged
 		const isIcsTask = (task as any).source?.type === "ics";
-		if (isIcsTask) {
+		const isReadOnly = (task as any).readonly === true;
+		if (isIcsTask && isReadOnly) {
 			new Notice(
 				t(
 					"Cannot move external calendar events. Please update them in the original calendar.",
@@ -1309,16 +1336,26 @@ export class CalendarComponent extends Component {
 		newStart: Date | string,
 		newEnd: Date | string,
 	) {
+		if (event.metadata?.externalDrop === true) {
+			this.updateExternalTextEventTime(event, newStart, newEnd);
+			return;
+		}
+
 		const task = getTaskFromEvent(event as any);
 		if (!task) {
 			new Notice(t("Failed to update task: Task not found"));
 			return;
 		}
 
+		// Don't allow resizing read-only ICS tasks (URL-based external calendar events)
+		// OAuth providers (Google, Outlook, Apple) support two-way sync and can be resized
 		const isIcsTask = (task as any).source?.type === "ics";
-		if (isIcsTask) {
+		const isReadOnly = (task as any).readonly === true;
+		if (isIcsTask && isReadOnly) {
 			new Notice(
-				"In current version, cannot resize external calendar events",
+				t(
+					"Cannot resize external calendar events. Please update them in the original calendar.",
+				),
 			);
 			setTimeout(() => {
 				this.processTasks();
@@ -1559,6 +1596,205 @@ export class CalendarComponent extends Component {
 		}
 	}
 
+	private registerExternalTextDropHandlers(): void {
+		const supportsTextDrop = (
+			dt: DataTransfer | null,
+		): dt is DataTransfer => {
+			if (!dt) return false;
+			const types = Array.from(dt.types ?? []).map((t) =>
+				String(t).toLowerCase(),
+			);
+			const hasStringItem = Array.from(dt.items ?? []).some(
+				(item) => item.kind === "string",
+			);
+			return (
+				hasStringItem ||
+				types.includes("text/plain") ||
+				types.includes("text") ||
+				types.includes("text/unicode") ||
+				types.includes("text/html") ||
+				types.includes("text/uri-list")
+			);
+		};
+
+		const readDroppedText = (dt: DataTransfer): string => {
+			const raw =
+				dt.getData("text/plain") ||
+				dt.getData("text") ||
+				dt.getData("Text") ||
+				dt.getData("text/unicode") ||
+				dt.getData("text/uri-list") ||
+				"";
+			return raw.trim();
+		};
+
+		this.registerDomEvent(
+			this.viewContainerEl,
+			"dragover",
+			(e: DragEvent) => {
+				if (!supportsTextDrop(e.dataTransfer)) return;
+				e.preventDefault();
+				e.dataTransfer.dropEffect = "copy";
+			},
+		);
+
+		this.registerDomEvent(this.viewContainerEl, "drop", (e: DragEvent) => {
+			if (!supportsTextDrop(e.dataTransfer)) return;
+
+			const text = readDroppedText(e.dataTransfer);
+			if (!text) return;
+
+			const target = this.resolveExternalDropTarget(e);
+			if (!target) return;
+
+			e.preventDefault();
+			e.stopPropagation();
+
+			this.addExternalTextEvent(text, target);
+		});
+	}
+
+	private resolveExternalDropTarget(
+		e: DragEvent,
+	): { start: Date; end: Date; allDay: boolean } | null {
+		const targetEl = e.target instanceof HTMLElement ? e.target : null;
+		if (!targetEl) return null;
+
+		// Week/Day view: drop into a time column -> snap start time to the slot
+		const dayColumn = targetEl.closest<HTMLElement>(
+			".tg-day-column[data-date]",
+		);
+		if (dayColumn?.dataset.date) {
+			const rect = dayColumn.getBoundingClientRect();
+			const relY = e.clientY - rect.top;
+
+			// Keep in sync with our TGCalendar config (theme.cellHeight / draggable.snapMinutes)
+			const cellHeightPx = 60;
+			const snapMinutes = 15;
+
+			const rawMinutes = (relY / cellHeightPx) * 60;
+			const snappedMinutes = Math.max(
+				0,
+				Math.min(
+					1440,
+					Math.round(rawMinutes / snapMinutes) * snapMinutes,
+				),
+			);
+
+			const baseDate = dateFns.parseISO(dayColumn.dataset.date);
+			const start = dateFns.setMinutes(
+				dateFns.setHours(baseDate, Math.floor(snappedMinutes / 60)),
+				snappedMinutes % 60,
+			);
+			const end = dateFns.addMinutes(start, 30);
+
+			return { start, end, allDay: false };
+		}
+
+		// Month view: drop into a day cell -> place at that day (all-day)
+		const monthCell = targetEl.closest<HTMLElement>(".tg-month-cell");
+		const monthRow = monthCell?.closest<HTMLElement>(
+			".tg-month-row[data-date]",
+		);
+		if (monthCell && monthRow?.dataset.date) {
+			const cells = Array.from(
+				monthRow.querySelectorAll<HTMLElement>(".tg-month-cell"),
+			);
+			const index = cells.indexOf(monthCell);
+			if (index < 0) return null;
+
+			const rowStart = dateFns.parseISO(monthRow.dataset.date);
+			const date = addDays(rowStart, index);
+			const start = startOfDay(date);
+
+			return { start, end: start, allDay: true };
+		}
+
+		return null;
+	}
+
+	private addExternalTextEvent(
+		text: string,
+		target: { start: Date; end: Date; allDay: boolean },
+	): void {
+		const title =
+			text
+				.split(/\r?\n/)
+				.map((l) => l.trim())
+				.find((l) => l.length > 0) ?? t("New event");
+
+		const id = `external-drop:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+		const toDateTime = (d: Date) => dateFns.format(d, "yyyy-MM-dd HH:mm");
+
+		const normalizedStart = target.allDay
+			? startOfDay(target.start)
+			: target.start;
+		const normalizedEnd = target.allDay
+			? startOfDay(target.end)
+			: target.end;
+
+		const event: AdapterCalendarEvent = {
+			id,
+			title,
+			start: toDateTime(normalizedStart),
+			end: toDateTime(normalizedEnd),
+			color: "var(--interactive-accent)",
+			allDay: target.allDay,
+			metadata: {
+				externalDrop: true,
+				rawText: text,
+				createdAt: Date.now(),
+			},
+		};
+
+		this.externalTextEvents.push(event);
+		this.tgCalendar?.addEvent(event);
+	}
+
+	/**
+	 * Update the time of an external text event when dragged
+	 */
+	private updateExternalTextEventTime(
+		event: AdapterCalendarEvent,
+		newStart: Date | string,
+		newEnd: Date | string,
+	): void {
+		const index = this.externalTextEvents.findIndex(
+			(e) => e.id === event.id,
+		);
+		if (index < 0) return;
+
+		const startDate =
+			newStart instanceof Date ? newStart : new Date(newStart);
+		const endInput = newEnd ?? newStart;
+		const endDate =
+			endInput instanceof Date ? endInput : new Date(endInput);
+
+		if (
+			Number.isNaN(startDate.getTime()) ||
+			Number.isNaN(endDate.getTime())
+		) {
+			return;
+		}
+
+		const isAllDayEvent = event.allDay === true;
+		const normalizedStart = isAllDayEvent
+			? startOfDay(startDate)
+			: startDate;
+		const normalizedEnd = isAllDayEvent ? startOfDay(endDate) : endDate;
+		const toDateTime = (d: Date) => dateFns.format(d, "yyyy-MM-dd HH:mm");
+
+		const current = this.externalTextEvents[index];
+		if (!current) return;
+
+		this.externalTextEvents[index] = {
+			...current,
+			start: toDateTime(normalizedStart),
+			end: toDateTime(normalizedEnd),
+			allDay: isAllDayEvent,
+		};
+	}
+
 	// ============================================
 	//  TGCalendar Interaction Handlers (v0.6.0+)
 	// ============================================
@@ -1775,7 +2011,10 @@ export class CalendarComponent extends Component {
 		const tasksWithDates = this.tasks.filter((task) =>
 			hasDateInformation(task),
 		);
-		return tasksToCalendarEvents(tasksWithDates);
+		return [
+			...tasksToCalendarEvents(tasksWithDates),
+			...this.externalTextEvents,
+		];
 	}
 
 	private getTasksForDate(date: Date): Task[] {

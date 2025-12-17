@@ -1,0 +1,455 @@
+/**
+ * Calendar Settings Styles
+ * Styles for the calendar integration settings interface
+ */
+
+// ============================================================================
+// Container
+// ============================================================================
+
+.calendar-settings-container {
+	padding: 0;
+
+	h2 {
+		margin: 0 0 8px 0;
+	}
+
+	h3 {
+		margin: 24px 0 12px 0;
+		padding-bottom: 8px;
+		border-bottom: 1px solid var(--background-modifier-border);
+	}
+
+	.calendar-description {
+		color: var(--text-muted);
+		margin-bottom: 16px;
+	}
+}
+
+.calendar-header-container {
+	margin-bottom: 24px;
+}
+
+// ============================================================================
+// Sources List
+// ============================================================================
+
+.calendar-sources-list {
+	margin-bottom: 24px;
+
+	h3 {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+}
+
+.calendar-empty-state {
+	padding: 32px;
+	text-align: center;
+	color: var(--text-muted);
+	background: var(--background-secondary);
+	border-radius: 8px;
+	border: 1px dashed var(--background-modifier-border);
+}
+
+// ============================================================================
+// Source Card
+// ============================================================================
+
+.calendar-source-card {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 16px;
+	margin-bottom: 8px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	transition: border-color 0.15s ease;
+
+	&:hover {
+		border-color: var(--interactive-accent);
+	}
+
+	.source-left {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		flex: 1;
+		min-width: 0;
+	}
+
+	.source-icon {
+		width: 40px;
+		height: 40px;
+		border-radius: 8px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+
+		svg {
+			width: 20px;
+			height: 20px;
+			color: white;
+		}
+	}
+
+	.source-info {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.source-name {
+		font-weight: 600;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.source-type-row {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-top: 2px;
+	}
+
+	.source-type {
+		font-size: var(--font-ui-smaller);
+		color: var(--text-muted);
+	}
+
+	.source-status {
+		font-size: var(--font-ui-smaller);
+		padding: 2px 6px;
+		border-radius: 4px;
+
+		&.enabled {
+			color: var(--text-success);
+		}
+
+		&.disabled {
+			background: var(--background-modifier-error);
+			color: var(--text-muted);
+		}
+	}
+
+	.source-last-sync {
+		font-size: var(--font-ui-smaller);
+		color: var(--text-faint);
+		margin-top: 2px;
+	}
+
+	.source-actions {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+
+		.toggle-component {
+			margin-right: 8px;
+		}
+
+		.clickable-icon {
+			&.spinning {
+				animation: spin 1s linear infinite;
+			}
+		}
+	}
+}
+
+@keyframes spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+// ============================================================================
+// Add Source Button
+// ============================================================================
+
+.calendar-add-source-container {
+	display: flex;
+	justify-content: center;
+	margin-top: 16px;
+}
+
+.calendar-add-button span {
+	display: flex;
+}
+
+// ============================================================================
+// Source Modal
+// ============================================================================
+
+.calendar-source-modal {
+	/* max-width: 600px; */
+	width: 70vw;
+
+	.modal-content {
+		padding: 20px;
+	}
+
+	.modal-header {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin-bottom: 20px;
+
+		h2 {
+			margin: 0;
+			flex: 1;
+		}
+
+		.modal-back-btn {
+			padding: 4px 8px;
+		}
+	}
+
+	.modal-description {
+		color: var(--text-muted);
+		margin-bottom: 20px;
+	}
+}
+
+// ============================================================================
+// Type Selection Grid
+// ============================================================================
+
+.calendar-type-grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 12px;
+	margin-bottom: 20px;
+
+	@media (max-width: 480px) {
+		grid-template-columns: 1fr;
+	}
+}
+
+.type-card {
+	padding: 20px;
+	background: var(--background-secondary);
+	border: 2px solid var(--background-modifier-border);
+	border-radius: 12px;
+	cursor: pointer;
+	text-align: center;
+	transition: all 0.15s ease;
+
+	&:hover {
+		border-color: var(--interactive-accent);
+		transform: translateY(-2px);
+	}
+
+	.type-icon {
+		width: 48px;
+		height: 48px;
+		margin: 0 auto 12px;
+		background: var(--interactive-accent);
+		border-radius: 12px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+
+		svg {
+			width: 24px;
+			height: 24px;
+			color: var(--text-on-accent);
+		}
+	}
+
+	.type-name {
+		font-weight: 600;
+		margin-bottom: 4px;
+	}
+
+	.type-desc {
+		font-size: var(--font-ui-smaller);
+		color: var(--text-muted);
+		line-height: 1.4;
+	}
+}
+
+// ============================================================================
+// Settings Sections
+// ============================================================================
+
+.settings-section {
+	margin-bottom: 24px;
+	padding: 16px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+
+	h3 {
+		margin: 0 0 16px 0;
+		padding: 0;
+		border: none;
+	}
+
+	h4 {
+		margin: 16px 0 12px 0;
+		font-size: var(--font-ui-small);
+		color: var(--text-muted);
+	}
+}
+
+// ============================================================================
+// OAuth Status
+// ============================================================================
+
+.oauth-status {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 16px;
+	border-radius: 8px;
+	margin-bottom: 16px;
+
+	&.connected {
+	}
+
+	&.disconnected {
+		background: var(--background-primary);
+		border: 1px dashed var(--background-modifier-border);
+	}
+
+	.connected-info,
+	.disconnected-info {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.status-icon {
+		display: flex;
+
+		svg {
+			width: 18px;
+			height: 18px;
+		}
+	}
+
+	.status-text {
+		font-weight: 500;
+	}
+
+	.account-email {
+		color: var(--text-muted);
+		margin-left: 8px;
+	}
+}
+
+.oauth-hint {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	font-style: italic;
+}
+
+// ============================================================================
+// Apple Notice
+// ============================================================================
+
+.apple-notice {
+	padding: 12px;
+	background: var(--background-modifier-warning);
+	border-radius: 8px;
+	margin-bottom: 16px;
+	font-size: var(--font-ui-small);
+
+	strong {
+		color: var(--text-warning);
+	}
+
+	a {
+		color: var(--text-accent);
+	}
+}
+
+// ============================================================================
+// Calendar Selector
+// ============================================================================
+
+.calendar-selector {
+	margin-top: 16px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
+
+	h4 {
+		margin: 0 0 12px 0;
+	}
+
+	.loading-state,
+	.empty-calendars {
+		padding: 16px;
+		text-align: center;
+		color: var(--text-muted);
+	}
+}
+
+.calendar-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+
+	&:last-child {
+		border-bottom: none;
+	}
+
+	input[type="checkbox"] {
+		margin: 0;
+	}
+
+	label {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		flex: 1;
+		cursor: pointer;
+	}
+
+	.calendar-color {
+		width: 12px;
+		height: 12px;
+		border-radius: 3px;
+		flex-shrink: 0;
+	}
+
+	.primary-badge {
+		font-size: var(--font-ui-smaller);
+		padding: 2px 6px;
+		background: var(--interactive-accent);
+		color: var(--text-on-accent);
+		border-radius: 4px;
+		margin-left: auto;
+	}
+}
+
+// ============================================================================
+// Auth Section
+// ============================================================================
+
+.auth-section {
+	margin-top: 16px;
+	padding-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+// ============================================================================
+// Modal Buttons
+// ============================================================================
+
+.modal-button-container {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 24px;
+	padding-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+}
