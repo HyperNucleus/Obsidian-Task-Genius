@@ -7,6 +7,21 @@ import { createTaskCheckbox } from "@/components/features/task/view/details";
 import { getEffectiveProject } from "@/utils/task/task-operations";
 import { sanitizePriorityForClass } from "@/utils/task/priority-utils";
 
+/**
+ * Cache for CSS custom property tag colors to prevent layout thrashing.
+ * Reading getComputedStyle() in a render loop causes forced synchronous reflow.
+ * This cache stores resolved tag colors so we only read the DOM once per tag.
+ */
+const tagColorCache: Map<string, string | null> = new Map();
+
+/**
+ * Clears the tag color cache. Should be called when CSS changes
+ * (e.g., theme switch, CSS snippet toggle) to ensure fresh values.
+ */
+export function clearTagColorCache(): void {
+	tagColorCache.clear();
+}
+
 export class KanbanCardComponent extends Component {
 	public element: HTMLElement;
 	private task: Task;
@@ -317,14 +332,24 @@ export class KanbanCardComponent extends Component {
 				const color = tagColors[tagName];
 				tagEl.style.setProperty("--tag-color", color);
 				tagEl.classList.add("colored-tag");
+				return; // Color found from plugin, no need to check CSS vars
 			}
 		}
 
 		// Fallback: check for CSS custom properties set by other tag color plugins
-		const computedStyle = getComputedStyle(document.body);
-		const tagColorVar = computedStyle.getPropertyValue(
-			`--tag-color-${tagName}`,
-		);
+		// Use cache to prevent layout thrashing from repeated getComputedStyle calls
+		let tagColorVar = tagColorCache.get(tagName);
+
+		if (tagColorVar === undefined) {
+			// Cache miss: read from DOM once and cache the result
+			const computedStyle = getComputedStyle(document.body);
+			const val = computedStyle
+				.getPropertyValue(`--tag-color-${tagName}`)
+				.trim();
+			tagColorVar = val || null;
+			tagColorCache.set(tagName, tagColorVar);
+		}
+
 		if (tagColorVar) {
 			tagEl.style.setProperty("--tag-color", tagColorVar);
 			tagEl.classList.add("colored-tag");

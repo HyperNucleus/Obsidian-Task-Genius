@@ -9,6 +9,7 @@ import {
 import TaskProgressBarPlugin from "@/index"; // Adjust path as needed
 import { Task } from "@/types/task"; // Adjust path as needed
 import { KanbanColumnComponent } from "./kanban-column";
+import { clearTagColorCache } from "./kanban-card";
 // import { DragManager, DragMoveEvent, DragEndEvent } from "@/components/ui/behavior/DragManager";
 import Sortable from "sortablejs";
 import "@/styles/kanban/kanban.scss";
@@ -135,6 +136,13 @@ export class KanbanComponent extends Component {
 		super.onload();
 		this.containerEl.empty();
 		this.containerEl.addClass("tg-kanban-view");
+
+		// Clear tag color cache on CSS changes (theme switch, snippet toggle)
+		this.registerEvent(
+			this.app.workspace.on("css-change", () => {
+				clearTagColorCache();
+			})
+		);
 
 		// Load configuration settings
 		this.loadKanbanConfig();

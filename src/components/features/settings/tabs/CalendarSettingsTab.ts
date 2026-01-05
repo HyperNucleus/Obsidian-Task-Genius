@@ -319,6 +319,9 @@ export class CalendarSettingsComponent {
 					} else if (isOutlookSource(source)) {
 						// Use OutlookCalendarProvider for Outlook sources
 						await this.syncOutlookSource(source);
+					} else if (isAppleSource(source)) {
+						// Use AppleCaldavProvider for Apple CalDAV sources
+						await this.syncAppleSource(source);
 					} else if (isUrlIcsSource(source)) {
 						// Use IcsManager for URL-based sources
 						const icsManager = this.plugin.getIcsManager();
@@ -520,6 +523,49 @@ export class CalendarSettingsComponent {
 
 		new Notice(t("Sync completed") + `: ${events.length} ` + t("events"));
 	}
+
+	/**
+	 * Sync an Apple CalDAV source using AppleCaldavProvider
+	 */
+	private async syncAppleSource(
+		source: AppleCaldavSourceConfig,
+	): Promise<void> {
+		if (!source.appSpecificPassword) {
+			throw new Error("Not authenticated with iCloud Calendar");
+		}
+
+		if (!source.calendarHrefs || source.calendarHrefs.length === 0) {
+			throw new Error("No calendars selected for sync");
+		}
+
+		// Import the provider dynamically to avoid circular deps
+		const { AppleCaldavProvider } =
+			await import("@/providers/apple-caldav-provider");
+
+		// Create provider instance
+		const provider = new AppleCaldavProvider(source);
+
+		// Fetch events for the configured date range (default: last 30 days to next 90 days)
+		const now = new Date();
+		const start = new Date(now);
+		start.setDate(start.getDate() - 30);
+		const end = new Date(now);
+		end.setDate(end.getDate() + 90);
+
+		const events = await provider.getEvents({
+			range: { start, end },
+			expandRecurring: true,
+		});
+
+		// Update cache in IcsManager
+		const icsManager = this.plugin.getIcsManager();
+		if (icsManager && events.length > 0) {
+			// Store events in the IcsManager cache
+			icsManager.updateCacheForSource(source.id, events);
+		}
+
+		new Notice(t("Sync completed") + `: ${events.length} ` + t("events"));
+	}
 }
 
 // ============================================================================
@@ -621,9 +667,19 @@ class CalendarSourceModal extends Modal {
 			"apple-caldav",
 		];
 
+		// Temporarily disabled providers (not yet fully implemented)
+		const disabledProviders: CalendarProviderType[] = [
+			"google",
+			"outlook",
+			"apple-caldav",
+		];
+
 		for (const type of providerTypes) {
 			const meta = CalendarProviderMeta[type];
-			const card = grid.createDiv("type-card");
+			const isDisabled = disabledProviders.includes(type);
+			const card = grid.createDiv({
+				cls: `type-card${isDisabled ? " type-card-disabled" : ""}`,
+			});
 
 			const iconDiv = card.createDiv("type-icon");
 			setIcon(iconDiv, meta.icon);
@@ -631,9 +687,13 @@ class CalendarSourceModal extends Modal {
 			card.createDiv("type-name").setText(meta.displayName);
 			card.createDiv("type-desc").setText(meta.description);
 
-			card.onclick = () => {
-				this.selectType(type);
-			};
+			if (isDisabled) {
+				card.createDiv("type-badge").setText(t("Coming Soon"));
+			} else {
+				card.onclick = () => {
+					this.selectType(type);
+				};
+			}
 		}
 	}
 
